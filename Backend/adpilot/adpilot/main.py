@@ -39,14 +39,14 @@ def get_session():
         yield session
 
 @asynccontextmanager
-async def lifespan():
+async def Lifespan(app):
     print("Creating Tables")
     create_tables()
     print("Tables Created")
     yield
 
 
-app=FastAPI(lifespan=lifespan,title="Adpilot",description="Adpilot API",version="0.1.0")
+app=FastAPI(lifespan=Lifespan,title="Adpilot",description="Adpilot API",version="0.1.0")
 
 
 @app.post("/user/",response_model=User)
