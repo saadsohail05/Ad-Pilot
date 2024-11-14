@@ -1,4 +1,5 @@
-import Link from "next/link";
+import Link from 'next/link'
+import { ArrowRight, Star } from 'lucide-react'
 
 const Hero = () => {
   return (
@@ -11,26 +12,28 @@ const Hero = () => {
           <div className="-mx-4 flex flex-wrap">
             <div className="w-full px-4">
               <div className="mx-auto max-w-[800px] text-center">
-                <h1 className="mb-5 text-3xl font-bold leading-tight text-black dark:text-white sm:text-4xl sm:leading-tight md:text-5xl md:leading-tight">
-                  Free and Open-Source Next.js Template for Startup & SaaS
+                <h1 className="mb-6 text-4xl font-extrabold leading-tight tracking-tight text-gray-900 dark:text-white sm:text-5xl sm:leading-tight md:text-6xl md:leading-tight">
+                  Revolutionize Your Ad Campaigns with{' '}
+                  <span className="inline-block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-blue-600">
+                    Adpilot
+                  </span>
                 </h1>
-                <p className="mb-12 text-base !leading-relaxed text-body-color dark:text-body-color-dark sm:text-lg md:text-xl">
-                  Startup is free Next.js template for startups and SaaS
-                  business websites comes with all the essential pages,
-                  components, and sections you need to launch a complete
-                  business website, built-with Next 13.x and Tailwind CSS.
+                <p className="mb-12 text-xl !leading-relaxed text-gray-700 dark:text-gray-300 sm:text-2xl">
+                  Adpilot is your AI-powered copilot for creating, managing, and optimizing ad campaigns across multiple platforms. Boost your ROI with data-driven insights and automated optimization.
                 </p>
                 <div className="flex flex-col items-center justify-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
                   <Link
-                    href="https://nextjstemplates.com/templates/saas-starter-startup"
-                    className="rounded-sm bg-primary px-8 py-4 text-base font-semibold text-white duration-300 ease-in-out hover:bg-primary/80"
+                    href="/get-started"
+                    className="group inline-flex items-center justify-center rounded-full bg-primary px-8 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-primary-600 hover:shadow-primary-500/25 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:shadow-lg dark:shadow-primary-800/80"
                   >
-                    🔥 Get Pro
+                    Get Started Free
+                    <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 ease-in-out group-hover:translate-x-1" />
                   </Link>
                   <Link
-                    href="https://github.com/NextJSTemplates/startup-nextjs"
-                    className="inline-block rounded-sm bg-black px-8 py-4 text-base font-semibold text-white duration-300 ease-in-out hover:bg-black/90 dark:bg-white/10 dark:text-white dark:hover:bg-white/5"
+                    href="https://github.com/saadsohail05/Ad-Pilot"
+                    className="group inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-lg font-semibold text-gray-900 shadow-lg transition-all duration-300 ease-in-out hover:bg-gray-50 hover:shadow-gray-500/25 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 dark:shadow-lg dark:shadow-gray-800/80"
                   >
+                    <Star className="mr-2 h-5 w-5 transition-all duration-300 ease-in-out group-hover:text-yellow-500" />
                     Star on GitHub
                   </Link>
                 </div>
