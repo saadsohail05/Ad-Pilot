@@ -1,6 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
+import { Rocket } from 'lucide-react';
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import ThemeToggler from "./ThemeToggler";
@@ -50,27 +51,16 @@ const Header = () => {
         <div className="container">
           <div className="relative -mx-4 flex items-center justify-between">
             <div className="w-60 max-w-full px-4 xl:mr-12">
-              <Link
-                href="/"
-                className={`header-logo block w-full ${
-                  sticky ? "py-5 lg:py-2" : "py-8"
-                } `}
-              >
-                <Image
-                  src="/images/logo/logo-2.svg"
-                  alt="logo"
-                  width={140}
-                  height={30}
-                  className="w-full dark:hidden"
-                />
-                <Image
-                  src="/images/logo/logo.svg"
-                  alt="logo"
-                  width={140}
-                  height={30}
-                  className="hidden w-full dark:block"
-                />
-              </Link>
+              <Link href="/" className="flex items-center space-x-2 transition-transform hover:scale-105">
+    <span className="relative">
+      <Rocket className="h-6 w-6 text-blue-400 animate-pulse" />
+      <span className="absolute top-0 right-0 h-2 w-2 rounded-full bg-blue-400 animate-ping" />
+    </span>
+    <span className="text-2xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 text-transparent bg-clip-text">
+      Ad Pilot
+    </span>
+      </Link>
+
             </div>
             <div className="flex w-full items-center justify-between px-4">
               <div>
