@@ -12,8 +12,8 @@ uvicorn = "^0.32.0"
 sqlmodel = "^0.0.22"
 psycopg = {extras = ["binary"], version = "^3.2.3"}
 python-multipart = "^0.0.17"
-passlib = {extras = ["bcrypt"], version = "^1.7.4"}
-bcrypt = "^4.2.0"
+passlib = "^1.7.4"
+bcrypt = "3.2.2"
 python-jose = {extras = ["cryptography"], version = "^3.3.0"}
 
 

@@ -2,7 +2,7 @@ from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
 from typing import Annotated
 from adpilot.db import get_session
-from adpilot.models import User, RefreshTokenData
+from adpilot.models import User, RefreshTokenData, TokenData
 from sqlmodel import Session,select
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt,JWTError
@@ -93,6 +93,29 @@ def validate_refresh_token(token: str,
     except:
         raise JWTError
     user = get_user_from_db(session, email=token_data.email)
+    if not user:
+        raise credential_exception
+    return user
+
+def current_user(token: Annotated[str, Depends(oauth_scheme)],
+                 session: Annotated[Session, Depends(get_session)]):
+    credential_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid token, Please login again",
+        headers={"www-Authenticate": "Bearer"}
+    )
+
+    try:
+        payload = jwt.decode(token, SECRET_KEY, ALGORITHYM)
+        username: str | None = payload.get("sub")
+
+        if username is None:
+            raise credential_exception
+        token_data = TokenData(username=username)
+
+    except JWTError:
+        raise credential_exception
+    user = get_user_from_db(session, username=token_data.username)
     if not user:
         raise credential_exception
     return user

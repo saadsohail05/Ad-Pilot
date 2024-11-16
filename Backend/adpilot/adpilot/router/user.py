@@ -36,6 +36,7 @@ async def register_user(
     session.refresh(user)
     return {"message": f"User with {user.username} successfully registered"}
 
-# @user_router.get("/me")
-# async def user_profile(current_user:Annotated[User,Depends(oauth_scheme)]):
-#     return("Hello, user!")
+@user_router.get('/me')
+async def user_profile (current_user:Annotated[User, Depends(current_user)]):
+
+    return current_user
