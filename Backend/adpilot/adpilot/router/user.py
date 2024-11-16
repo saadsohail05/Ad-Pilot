@@ -3,7 +3,7 @@ from typing import Annotated
 from adpilot.models import Register_User
 from fastapi import Depends
 from adpilot.db import get_session
-from adpilot.auth import hash_password, get_user_from_db, oauth_scheme
+from adpilot.auth import hash_password, get_user_from_db, oauth_scheme,current_user
 from sqlmodel import Session
 from fastapi import HTTPException
 from adpilot.models import User
