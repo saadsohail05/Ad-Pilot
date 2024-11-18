@@ -14,6 +14,9 @@ import { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Ad Pilot",
   description: "This is Home for Ad Pilot",
+  icons: {
+    icon: "/favicon.png" // Correct path to your favicon
+  },
   // other metadata
 };
 
@@ -29,7 +32,6 @@ export default function Home() {
       <AboutSectionTwo />
       <Testimonials />
       <Pricing />
-      <Blog />
       <Contact />
     </>
   );
