@@ -1,14 +1,56 @@
+"use client"
 import Link from "next/link";
-
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Sign Up | Ad Pilot",  // other metadata
-};
+import { useState } from "react";
+import { registerUser } from "../../actions/actions"; // Adjust the import path as necessary
+import Head from "next/head";
+import { metadata } from "./metadata"; // Import the metadata
+import { useEffect } from "react";
 
 const SignupPage = () => {
+
+  useEffect(() => {
+    document.title = "Sign Up | Ad Pilot";
+  }, []);
+
+
+  const [formData, setFormData] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await registerUser({
+        username: formData.name,
+        email: formData.email,
+        password: formData.password,
+      });
+      setSuccess(response.message);
+      setError("");
+    } catch (err: any) {
+      setError(err.message);
+      setSuccess("");
+    }
+  };
+
   return (
     <>
+      <Head>
+      <title>Sign Up - Your App Name</title> {/* This sets the page title */}
+      <meta name="description" content="Sign up for our app!" />
+  </Head>     
       <section className="relative z-10 overflow-hidden pb-16 pt-36 md:pb-20 lg:pb-28 lg:pt-[180px]">
         <div className="container">
           <div className="-mx-4 flex flex-wrap">
@@ -20,9 +62,9 @@ const SignupPage = () => {
                 <p className="mb-11 text-center text-base font-medium text-body-color">
                   It’s totally free and super easy
                 </p>
-                
-                
-                <form>
+                {error && <p className="text-red-500 text-center">{error}</p>}
+                {success && <p className="text-green-500 text-center">{success}</p>}
+                <form onSubmit={handleSubmit}>
                   <div className="mb-8">
                     <label
                       htmlFor="name"
@@ -35,6 +77,8 @@ const SignupPage = () => {
                       type="text"
                       name="name"
                       placeholder="Enter your full name"
+                      value={formData.name}
+                      onChange={handleChange}
                       className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                     />
                   </div>
@@ -50,6 +94,8 @@ const SignupPage = () => {
                       type="email"
                       name="email"
                       placeholder="Enter your Email"
+                      value={formData.email}
+                      onChange={handleChange}
                       className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                     />
                   </div>
@@ -65,6 +111,8 @@ const SignupPage = () => {
                       type="password"
                       name="password"
                       placeholder="Enter your Password"
+                      value={formData.password}
+                      onChange={handleChange}
                       className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                     />
                   </div>

@@ -9,6 +9,7 @@ from adpilot.db import get_session, create_tables
 from adpilot.router import user
 from adpilot.auth import authenticate_user, create_access_token,EXPIRY_TIME, create_refresh_token, validate_refresh_token
 from adpilot.models import User, Token,RefreshTokenData, TokenData, Register_User
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -21,7 +22,16 @@ async def lifespan(app: FastAPI):
 app: FastAPI = FastAPI(
     lifespan=lifespan, title="Adpilot", version='1.0.0')
 
-app.include_router(router=user.user_router)
+# Add CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:3000"],  # Adjust this to the specific origins you want to allow
+    allow_credentials=True,
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Specify allowed methods
+    allow_headers=["Content-Type", "Authorization"],  # Specify allowed headers
+)
+
+app.include_router(user.user_router)
 
 @app.get("/")
 async def root():

@@ -1,15 +1,47 @@
+"use client"
 import Link from "next/link";
+import { useState } from "react";
+import { signInUser } from "../../actions/actions"; // Adjust the import path as necessary
+import Head from "next/head";
 
-import { Metadata } from "next";
-
-export const metadata: Metadata = {
-  title: "Sign In | Ad Pilot",
-  // other metadata
-};
 
 const SigninPage = () => {
+  const [formData, setFormData] = useState({
+    username: "",
+    password: "",
+  });
+
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value,
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const response = await signInUser({
+        username: formData.username,
+        password: formData.password,
+      });
+      setSuccess("Sign in successful!");
+      setError("");
+      // Store tokens or handle successful sign-in
+      console.log("Access Token:", response.access_token);
+      console.log("Refresh Token:", response.refresh_token);
+    } catch (err: any) {
+      setError(err.message);
+      setSuccess("");
+    }
+  };
+
   return (
     <>
+
       <section className="relative z-10 overflow-hidden pb-16 pt-36 md:pb-20 lg:pb-28 lg:pt-[180px]">
         <div className="container">
           <div className="-mx-4 flex flex-wrap">
@@ -21,19 +53,22 @@ const SigninPage = () => {
                 <p className="mb-11 text-center text-base font-medium text-body-color">
                   Login to your account for a faster checkout.
                 </p>
-                
-                <form>
+                {error && <p className="text-red-500 text-center">{error}</p>}
+                {success && <p className="text-green-500 text-center">{success}</p>}
+                <form onSubmit={handleSubmit}>
                   <div className="mb-8">
                     <label
-                      htmlFor="email"
+                      htmlFor="username"
                       className="mb-3 block text-sm text-dark dark:text-white"
                     >
-                      Your Email
+                      Your Username
                     </label>
                     <input
-                      type="email"
-                      name="email"
-                      placeholder="Enter your Email"
+                      type="text"
+                      name="username"
+                      placeholder="Enter your Username"
+                      value={formData.username}
+                      onChange={handleChange}
                       className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                     />
                   </div>
@@ -48,6 +83,8 @@ const SigninPage = () => {
                       type="password"
                       name="password"
                       placeholder="Enter your Password"
+                      value={formData.password}
+                      onChange={handleChange}
                       className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                     />
                   </div>
@@ -57,7 +94,7 @@ const SigninPage = () => {
                         htmlFor="checkboxLabel"
                         className="flex cursor-pointer select-none items-center text-sm font-medium text-body-color"
                       >
-                       
+                        {/* Add any additional elements here */}
                       </label>
                     </div>
                     <div className="flex justify-center w-full">

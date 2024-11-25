@@ -1,12 +1,9 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends, HTTPException
 from typing import Annotated
-from adpilot.models import Register_User
-from fastapi import Depends
+from adpilot.models import Register_User, User
 from adpilot.db import get_session
-from adpilot.auth import hash_password, get_user_from_db, oauth_scheme,current_user
+from adpilot.auth import hash_password, get_user_from_db, oauth_scheme, current_user
 from sqlmodel import Session
-from fastapi import HTTPException
-from adpilot.models import User
 
 user_router = APIRouter(
     prefix="/user",
@@ -18,9 +15,9 @@ user_router = APIRouter(
 async def read_users():
     return [{"username": "Rick"}, {"username": "Morty"}]
 
-@user_router.post("/register")
+@user_router.post("/register", response_model=dict)
 async def register_user(
-    new_user: Annotated[Register_User, Depends()],
+    new_user: Register_User,
     session: Annotated[Session, Depends(get_session)]
 ):
     db_user = get_user_from_db(session, new_user.username, new_user.email)
@@ -37,6 +34,5 @@ async def register_user(
     return {"message": f"User with {user.username} successfully registered"}
 
 @user_router.get('/me')
-async def user_profile (current_user:Annotated[User, Depends(current_user)]):
-
+async def user_profile(current_user: Annotated[User, Depends(current_user)]):
     return current_user
