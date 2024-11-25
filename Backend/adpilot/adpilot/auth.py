@@ -11,7 +11,7 @@ import bcrypt
 
 SECRET_KEY = 'ed60732905aeb0315e2f77d05a6cb57a0e408eaf2cb9a77a5a2667931c50d4e0'
 ALGORITHYM = 'HS256'
-EXPIRY_TIME = 1
+EXPIRY_TIME = 150
 
 
 oauth_scheme = OAuth2PasswordBearer(tokenUrl="/token")
@@ -41,16 +41,13 @@ def get_user_from_db(session: Annotated[Session, Depends(get_session)],
 
     return user
 
-def authenticate_user(username,
-                      password,
-                      session: Annotated[Session, Depends(get_session)]):
-    db_user = get_user_from_db(session=session, username=username)
-    print(f""" authenticate {db_user} """)
-    if not db_user:
+def authenticate_user(username: str, password: str, session: Session):
+    user = get_user_from_db(session, username=username)
+    if not user or not verify_password(password, user.password):
         return False
-    if not verify_password(password, db_user.password):
-        return False
-    return db_user
+    if not user.is_verified:
+        raise HTTPException(status_code=403, detail="Email not verified")
+    return user
 
 def create_access_token(data: dict, expiry_time: timedelta | None):
     data_to_encode = data.copy()

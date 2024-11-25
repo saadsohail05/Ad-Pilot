@@ -8,16 +8,22 @@ from contextlib import asynccontextmanager
 from adpilot.db import get_session, create_tables
 from adpilot.router import user
 from adpilot.auth import authenticate_user, create_access_token,EXPIRY_TIME, create_refresh_token, validate_refresh_token
-from adpilot.models import User, Token,RefreshTokenData, TokenData, Register_User
+from adpilot.models import User, Token, RefreshTokenData, TokenData, Register_User
 from fastapi.middleware.cors import CORSMiddleware
+from adpilot.email import send_verification_email
+import subprocess
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    print('Starting Redis server')
+    redis_process = subprocess.Popen(['redis-server'])
     print('Creating Tables')
     create_tables()
     print("Tables Created")
     yield
+    print('Stopping Redis server')
+    redis_process.terminate()
 
 app: FastAPI = FastAPI(
     lifespan=lifespan, title="Adpilot", version='1.0.0')

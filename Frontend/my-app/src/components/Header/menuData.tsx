@@ -48,6 +48,12 @@ const menuData: Menu[] = [
         path: "/error",
         newTab: false,
       },
+      {
+        id: 49,
+        title: "Verification Page",
+        path: "/verification",
+        newTab: false,
+      },
     ],
   },
 ];
