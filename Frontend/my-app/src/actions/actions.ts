@@ -2,14 +2,13 @@ export const registerUser = async (userData: {
   username: string;
   email: string;
   password: string;
-}): Promise<{ message: string }> => {
+}): Promise<any> => {  // Changed return type to any to match backend response
   try {
-    // Ensure data matches backend expectations exactly
     const requestData = {
       username: userData.username,
       email: userData.email,
       password: userData.password,
-      is_verified: false  // Add this field as required by backend
+      is_verified: false
     };
 
     const response = await fetch("http://localhost:8000/user/register", {
@@ -20,13 +19,17 @@ export const registerUser = async (userData: {
       body: JSON.stringify(requestData),
     });
 
+    const result = await response.json();
+
     if (!response.ok) {
-      const errorData = await response.json();
-      throw new Error(errorData.detail || "Something went wrong.");
+      throw new Error(result.detail?.message || result.detail || "Registration failed");
     }
 
-    const result = await response.json();
-    return result;
+    if (!result) {
+      throw new Error("No response data received");
+    }
+
+    return result; // This will now return the complete response from backend
   } catch (error: any) {
     console.error("Registration Error:", error.message);
     throw error;

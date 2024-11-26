@@ -7,7 +7,7 @@ from adpilot.auth import hash_password, get_user_from_db, oauth_scheme, current_
 from sqlmodel import Session
 from adpilot.email import send_verification_email, verify_token
 import requests
-# from adpilot.utils import email_exists  # Import the function from utils
+from adpilot.utils import verify_email_exists  # Add this import at the top
 
 # Add this class near the top with other models
 class EmailRequest(BaseModel):
@@ -29,24 +29,78 @@ async def register_user(
     session: Annotated[Session, Depends(get_session)],
     background_tasks: BackgroundTasks
 ):
-    # if not email_exists(new_user.email):
-    #     raise HTTPException(status_code=400, detail="Email address does not exist")
+    # Check if email exists with detailed validation
+    email_validation = verify_email_exists(new_user.email)
+    if not email_validation["valid"]:
+        raise HTTPException(
+            status_code=400, 
+            detail={
+                "message": "Invalid email address"
+                }
+           
+        )
+        print(email_validation)
+
     
+    # If email is valid, continue with the registration process
+    validation_response = {
+        "status": "success",
+        "status_code": 200,
+        "details": {
+            "email_validation": email_validation
+        }
+    }
+   
+
+    # Check if user already exists
     db_user = get_user_from_db(session, new_user.username, new_user.email)
     if db_user:
-        raise HTTPException(status_code=409, detail="User with these credentials already exists")
-    user = User(
-        username=new_user.username,
-        email=new_user.email,
-        password=hash_password(new_user.password),
-        is_verified=False
+        raise HTTPException(
+            status_code=409, 
+            detail={
+                "message": "User with these credentials already exists",
+                "status": "error",
+                "status_code": 409
+            }
+        )
 
-    )
-    session.add(user)
-    session.commit()
-    session.refresh(user)
-    background_tasks.add_task(send_verification_email, user.email)
-    return {"message": f"User with {user.username} successfully registered. Verification email sent."}
+    try:
+        user = User(
+            username=new_user.username,
+            email=new_user.email,
+            password=hash_password(new_user.password),
+            is_verified=False
+        )
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        
+        # Send verification email
+        background_tasks.add_task(send_verification_email, user.email)
+        
+        # Return successful response
+        print( {
+            "message": f"User {user.username} successfully registered. Verification email sent.",
+            "status": "success",
+            "status_code": 201,
+            "validation": validation_response,
+            "user": {
+                "username": user.username,
+                "email": user.email,
+                "is_verified": user.is_verified
+            }
+        }
+        )
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": f"Error during registration: {str(e)}",
+                "status": "error",
+                "status_code": 500
+            }
+        )
 
 @user_router.get('/me')
 async def user_profile(current_user: Annotated[User, Depends(current_user)]):

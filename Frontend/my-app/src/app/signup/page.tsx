@@ -45,10 +45,15 @@ const SignupPage = () => {
         email: formData.email,
         password: formData.password,
       });
-      setSuccess(response.message);
-      setError("");
-      // Redirect to verification page with email
-      router.push(`/verification?email=${encodeURIComponent(formData.email)}`);
+
+      if (response && response.status === "success") {
+        setSuccess(response.message);
+        setError("");
+        // Redirect to verification page with email
+        router.push(`/verification?email=${encodeURIComponent(formData.email)}`);
+      } else {
+        throw new Error(response?.message || "Registration failed");
+      }
     } catch (err: any) {
       setError(err.message);
       setSuccess("");
