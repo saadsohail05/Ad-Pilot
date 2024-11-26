@@ -1,16 +1,25 @@
 "use client"
 import Link from "next/link";
 import { useState } from "react";
-import { signInUser } from "../../actions/actions"; // Adjust the import path as necessary
+import { useRouter } from "next/navigation";
+import { verifyEmail, resendVerification } from "../../actions/actions"; // Adjust the import path as necessary
 import Head from "next/head";
+import { useSearchParams } from 'next/navigation';
 
-const SigninPage = () => {
+const VerificationPage = () => {
+  const searchParams = useSearchParams();
+  const email = searchParams.get('email');
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
     verificationCode: "",
   });
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isResending, setIsResending] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState("");
+  const [resendError, setResendError] = useState("");
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -22,17 +31,42 @@ const SigninPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const response = await signInUser({
-        verificationCode: formData.verificationCode,
+      const response = await verifyEmail({
+        verification_code: formData.verificationCode,
       });
-      setSuccess("Verification successful!");
+      
+      setSuccess(response.message);
       setError("");
-      // Store tokens or handle successful verification
-      console.log("Access Token:", response.access_token);
-      console.log("Refresh Token:", response.refresh_token);
+      
+      // Redirect to signin page after successful verification
+      setTimeout(() => {
+        router.push('/signin');
+      }, 2000);
     } catch (err: any) {
       setError(err.message);
       setSuccess("");
+    }
+  };
+
+  const handleResendCode = async () => {
+    if (!email) {
+      setResendError("Email address is missing");
+      return;
+    }
+    
+    setIsResending(true);
+    try {
+      const response = await resendVerification(email);
+      setResendSuccess(response.message);
+      setResendError("");
+      
+      // Clear success message after 3 seconds
+      setTimeout(() => setResendSuccess(""), 3000);
+    } catch (err: any) {
+      setResendError(err.message);
+      setResendSuccess("");
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -47,10 +81,12 @@ const SigninPage = () => {
                  Verify Your Account
                 </h3>
                 <p className="mb-11 text-center text-base font-medium text-body-color">
-                  Verify your account to access all features
+                  {email ? `Verify your account for ${email}` : 'Verify your account to access all features'}
                 </p>
-                {error && <p className="text-red-500 text-center">{error}</p>}
-                {success && <p className="text-green-500 text-center">{success}</p>}
+                {error && <p className="text-red-500 text-center mb-4">{error}</p>}
+                {success && <p className="text-green-500 text-center mb-4">{success}</p>}
+                {resendError && <p className="text-red-500 text-center mb-4">{resendError}</p>}
+                {resendSuccess && <p className="text-green-500 text-center mb-4">{resendSuccess}</p>}
                 <form onSubmit={handleSubmit}>
                   <div className="mb-8">
                     <label
@@ -74,6 +110,16 @@ const SigninPage = () => {
                     </button>
                   </div>
                 </form>
+
+                <div className="text-center">
+                  <button
+                    onClick={handleResendCode}
+                    disabled={isResending}
+                    className="text-primary hover:underline disabled:opacity-50 disabled:hover:no-underline"
+                  >
+                    {isResending ? "Sending..." : "Resend verification code"}
+                  </button>
+                </div>
              
               </div>
             </div>
@@ -141,4 +187,4 @@ const SigninPage = () => {
   );
 };
 
-export default SigninPage;
+export default VerificationPage;

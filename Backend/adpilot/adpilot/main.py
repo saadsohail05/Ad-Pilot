@@ -7,7 +7,7 @@ from typing import Annotated
 from contextlib import asynccontextmanager
 from adpilot.db import get_session, create_tables
 from adpilot.router import user
-from adpilot.auth import authenticate_user, create_access_token,EXPIRY_TIME, create_refresh_token, validate_refresh_token
+from adpilot.auth import authenticate_user, create_access_token, EXPIRY_TIME, create_refresh_token, validate_refresh_token, get_user_from_db
 from adpilot.models import User, Token, RefreshTokenData, TokenData, Register_User
 from fastapi.middleware.cors import CORSMiddleware
 from adpilot.email import send_verification_email
@@ -48,17 +48,36 @@ async def root():
 @app.post('/token', response_model=Token)
 async def login(form_data:Annotated[OAuth2PasswordRequestForm, Depends()],
                 session:Annotated[Session, Depends(get_session)]):
-    user = authenticate_user (form_data.username, form_data.password, session)
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    
-    expire_time = timedelta(minutes=EXPIRY_TIME)
-    access_token = create_access_token({"sub":form_data.username}, expire_time)
+    try:
+        user = authenticate_user(form_data.username, form_data.password, session)
+        
+        expire_time = timedelta(minutes=EXPIRY_TIME)
+        access_token = create_access_token({"sub": user.username}, expire_time)
+        refresh_expire_time = timedelta(days=7)
+        refresh_token = create_refresh_token({"sub": user.email}, refresh_expire_time)
 
-    refresh_expire_time = timedelta(days=7)
-    refresh_token = create_refresh_token({"sub":user.email}, refresh_expire_time)
-
-    return Token(access_token=access_token, token_type="bearer", refresh_token=refresh_token)
+        return Token(
+            access_token=access_token,
+            token_type="bearer",
+            refresh_token=refresh_token,
+            is_verified=True,
+            email=user.email
+        )
+        
+    except HTTPException as e:
+        if e.status_code == 403:  # Verification error
+            user = get_user_from_db(session, username=form_data.username)
+            if not user:
+                raise HTTPException(status_code=401, detail="Invalid username or password")
+                
+            return Token(
+                access_token=None,
+                token_type="bearer",
+                refresh_token=None,
+                is_verified=False,
+                email=user.email
+            )
+        raise e  # Re-raise other exceptions
 
 
 @app.post("/token/refresh")

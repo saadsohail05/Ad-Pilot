@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Form
 from typing import Annotated
+from pydantic import BaseModel
 from adpilot.models import Register_User, User
 from adpilot.db import get_session
 from adpilot.auth import hash_password, get_user_from_db, oauth_scheme, current_user
@@ -7,6 +8,10 @@ from sqlmodel import Session
 from adpilot.email import send_verification_email, verify_token
 import requests
 # from adpilot.utils import email_exists  # Import the function from utils
+
+# Add this class near the top with other models
+class EmailRequest(BaseModel):
+    email: str
 
 user_router = APIRouter(
     prefix="/user",
@@ -77,3 +82,19 @@ async def verify_email(
     session.add(user)
     session.commit()
     return {"message": "Email successfully verified"}
+
+@user_router.post("/resend-verification", response_model=dict)
+async def resend_verification(
+    email_data: EmailRequest,
+    background_tasks: BackgroundTasks,
+    session: Annotated[Session, Depends(get_session)]
+):
+    user = get_user_from_db(session, email=email_data.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    if user.is_verified:
+        raise HTTPException(status_code=400, detail="Email is already verified")
+
+    background_tasks.add_task(send_verification_email, email_data.email)
+    return {"message": "Verification Code Resent successfully"}

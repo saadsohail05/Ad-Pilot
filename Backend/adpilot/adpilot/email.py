@@ -21,13 +21,36 @@ def generate_verification_token(email: str):
     token = jwt.encode(payload, secret_key, algorithm="HS256")
     return token, numeric_token
 
+def invalidate_previous_codes(email: str):
+    # Get all keys in Redis
+    for key in redis_client.scan_iter("*"):
+        try:
+            # Decode the stored JWT token
+            stored_token = redis_client.get(key)
+            if stored_token:
+                payload = jwt.decode(stored_token, "1234", algorithms=["HS256"])
+                # If this token belongs to the email, delete it
+                if payload.get("email") == email:
+                    redis_client.delete(key)
+        except jwt.InvalidTokenError:
+            # If token is invalid, remove it
+            redis_client.delete(key)
+        except Exception as e:
+            print(f"Error processing key {key}: {e}")
+
 def send_verification_email(email: str):
     sender_email = "adpilotonline@gmail.com"
     sender_password = "mcsb seid roiv cnnd"
     receiver_email = email
 
+    # Invalidate any existing codes for this email
+    invalidate_previous_codes(email)
+
+    # Generate new verification code
     verification_token, numeric_token = generate_verification_token(email)
-    redis_client.setex(numeric_token, 3600, verification_token)  # Store the numeric token and JWT token in Redis with a 1-hour expiration
+    
+    # Store in Redis with 1-hour expiration
+    redis_client.setex(str(numeric_token), 3600, verification_token)
 
     message = MIMEMultipart("alternative")
     message["Subject"] = "Email Verification"

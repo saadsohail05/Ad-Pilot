@@ -1,6 +1,6 @@
 from sqlmodel import SQLModel, Field
 from fastapi.security import OAuth2PasswordRequestForm
-from typing import Annotated
+from typing import Annotated, Optional
 from fastapi import Form
 from pydantic import BaseModel
 
@@ -30,9 +30,11 @@ class Register_User (BaseModel):
     ]
 
 class Token (BaseModel):
-        access_token:str
-        token_type: str
-        refresh_token: str
+    access_token: Optional[str] = None
+    token_type: str
+    refresh_token: Optional[str] = None
+    is_verified: bool
+    email: str
 
 class TokenData (BaseModel):
         username:str

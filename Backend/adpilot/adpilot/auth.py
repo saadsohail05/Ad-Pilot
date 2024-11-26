@@ -44,9 +44,11 @@ def get_user_from_db(session: Annotated[Session, Depends(get_session)],
 def authenticate_user(username: str, password: str, session: Session):
     user = get_user_from_db(session, username=username)
     if not user or not verify_password(password, user.password):
-        return False
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
     if not user.is_verified:
-        raise HTTPException(status_code=403, detail="Email not verified")
+        raise HTTPException(status_code=403, detail="Please verify your email before signing in")
+
     return user
 
 def create_access_token(data: dict, expiry_time: timedelta | None):

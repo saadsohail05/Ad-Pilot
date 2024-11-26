@@ -3,22 +3,24 @@ import Link from "next/link";
 import { useState } from "react";
 import { registerUser } from "../../actions/actions"; // Adjust the import path as necessary
 import Head from "next/head";
-import { metadata } from "./metadata"; // Import the metadata
+// import { metadata } from "./metadata"; // Import the metadata
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 const SignupPage = () => {
+  const router = useRouter();
 
   useEffect(() => {
     document.title = "Sign Up | Ad Pilot";
   }, []);
 
-
   const [formData, setFormData] = useState({
-    name: "",
+    username: "", // Changed from name to username to match backend
     email: "",
     password: "",
   });
 
+  const [isChecked, setIsChecked] = useState(false); // Add this state for checkbox
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -31,14 +33,22 @@ const SignupPage = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (!isChecked) {
+      setError("Please accept the Terms and Conditions");
+      return;
+    }
+
     try {
       const response = await registerUser({
-        username: formData.name,
+        username: formData.username, // Updated to match backend
         email: formData.email,
         password: formData.password,
       });
       setSuccess(response.message);
       setError("");
+      // Redirect to verification page with email
+      router.push(`/verification?email=${encodeURIComponent(formData.email)}`);
     } catch (err: any) {
       setError(err.message);
       setSuccess("");
@@ -67,17 +77,17 @@ const SignupPage = () => {
                 <form onSubmit={handleSubmit}>
                   <div className="mb-8">
                     <label
-                      htmlFor="name"
+                      htmlFor="username"
                       className="mb-3 block text-sm text-dark dark:text-white"
                     >
                       {" "}
-                      Full Name{" "}
+                      Username{" "}
                     </label>
                     <input
                       type="text"
-                      name="name"
-                      placeholder="Enter your full name"
-                      value={formData.name}
+                      name="username" // Changed from name to username
+                      placeholder="Enter your username"
+                      value={formData.username}
                       onChange={handleChange}
                       className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                     />
@@ -126,6 +136,8 @@ const SignupPage = () => {
                           type="checkbox"
                           id="checkboxLabel"
                           className="sr-only"
+                          checked={isChecked}
+                          onChange={(e) => setIsChecked(e.target.checked)}
                         />
                         <div className="box mr-4 mt-1 flex h-5 w-5 items-center justify-center rounded border border-body-color border-opacity-20 dark:border-white dark:border-opacity-10">
                           <span className="opacity-0">
