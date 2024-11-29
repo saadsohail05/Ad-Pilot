@@ -35,12 +35,11 @@ async def register_user(
         raise HTTPException(
             status_code=400, 
             detail={
-                "message": "Invalid email address"
-                }
-           
+                "message": "Invalid email address",
+                "status": "error",
+                "status_code": 400
+            }
         )
-        print(email_validation)
-
     
     # If email is valid, continue with the registration process
     validation_response = {
@@ -50,7 +49,6 @@ async def register_user(
             "email_validation": email_validation
         }
     }
-   
 
     # Check if user already exists
     db_user = get_user_from_db(session, new_user.username, new_user.email)
@@ -79,7 +77,7 @@ async def register_user(
         background_tasks.add_task(send_verification_email, user.email)
         
         # Return successful response
-        print( {
+        return {
             "message": f"User {user.username} successfully registered. Verification email sent.",
             "status": "success",
             "status_code": 201,
@@ -90,7 +88,6 @@ async def register_user(
                 "is_verified": user.is_verified
             }
         }
-        )
     except Exception as e:
         session.rollback()
         raise HTTPException(

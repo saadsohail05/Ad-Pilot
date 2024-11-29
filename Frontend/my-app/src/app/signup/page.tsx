@@ -6,51 +6,53 @@ import Head from "next/head";
 // import { metadata } from "./metadata"; // Import the metadata
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 
 const SignupPage = () => {
   const router = useRouter();
+  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null); // Add this line
 
   useEffect(() => {
     document.title = "Sign Up | Ad Pilot";
   }, []);
 
-  const [formData, setFormData] = useState({
-    username: "", // Changed from name to username to match backend
-    email: "",
-    password: "",
+  const schema = z.object({
+    username: z.string().min(1, "Username is required"),
+    email: z.string().email("Invalid email address"),
+    password: z.string()
+      .min(6, "Password must be at least 6 characters long")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+    isChecked: z.boolean().refine(val => val === true, "Please accept the Terms and Conditions")
   });
 
-  const [isChecked, setIsChecked] = useState(false); // Add this state for checkbox
-  const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(schema)
+  });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!isChecked) {
+  const handleSubmitForm = async (data: any) => {
+    if (!data.isChecked) {
       setError("Please accept the Terms and Conditions");
       return;
     }
 
     try {
       const response = await registerUser({
-        username: formData.username, // Updated to match backend
-        email: formData.email,
-        password: formData.password,
+        username: data.username,
+        email: data.email,
+        password: data.password,
       });
 
       if (response && response.status === "success") {
         setSuccess(response.message);
         setError("");
         // Redirect to verification page with email
-        router.push(`/verification?email=${encodeURIComponent(formData.email)}`);
+        router.push(`/verification?email=${encodeURIComponent(data.email)}`);
       } else {
         throw new Error(response?.message || "Registration failed");
       }
@@ -79,7 +81,7 @@ const SignupPage = () => {
                 </p>
                 {error && <p className="text-red-500 text-center">{error}</p>}
                 {success && <p className="text-green-500 text-center">{success}</p>}
-                <form onSubmit={handleSubmit}>
+                <form onSubmit={handleSubmit(handleSubmitForm)}>
                   <div className="mb-8">
                     <label
                       htmlFor="username"
@@ -90,12 +92,11 @@ const SignupPage = () => {
                     </label>
                     <input
                       type="text"
-                      name="username" // Changed from name to username
+                      {...register("username")}
                       placeholder="Enter your username"
-                      value={formData.username}
-                      onChange={handleChange}
                       className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                     />
+                    {errors.username && <p className="text-red-500">{String(errors.username.message)}</p>}
                   </div>
                   <div className="mb-8">
                     <label
@@ -107,12 +108,11 @@ const SignupPage = () => {
                     </label>
                     <input
                       type="email"
-                      name="email"
+                      {...register("email")}
                       placeholder="Enter your Email"
-                      value={formData.email}
-                      onChange={handleChange}
                       className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                     />
+                    {errors.email && <p className="text-red-500">{String(errors.email.message)}</p>}
                   </div>
                   <div className="mb-8">
                     <label
@@ -124,59 +124,34 @@ const SignupPage = () => {
                     </label>
                     <input
                       type="password"
-                      name="password"
+                      {...register("password")}
                       placeholder="Enter your Password"
-                      value={formData.password}
-                      onChange={handleChange}
                       className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                     />
+                    {errors.password && <p className="text-red-500">{String(errors.password.message)}</p>}
                   </div>
-                  <div className="mb-8 flex">
+                  <div className="mb-8 flex items-center">
+                    <input
+                      type="checkbox"
+                      {...register("isChecked")}
+                      id="isChecked"
+                      className="mr-2"
+                    />
                     <label
-                      htmlFor="checkboxLabel"
-                      className="flex cursor-pointer select-none text-sm font-medium text-body-color"
+                      htmlFor="isChecked"
+                      className="text-sm font-medium text-body-color cursor-pointer"
                     >
-                      <div className="relative">
-                        <input
-                          type="checkbox"
-                          id="checkboxLabel"
-                          className="sr-only"
-                          checked={isChecked}
-                          onChange={(e) => setIsChecked(e.target.checked)}
-                        />
-                        <div className="box mr-4 mt-1 flex h-5 w-5 items-center justify-center rounded border border-body-color border-opacity-20 dark:border-white dark:border-opacity-10">
-                          <span className="opacity-0">
-                            <svg
-                              width="11"
-                              height="8"
-                              viewBox="0 0 11 8"
-                              fill="none"
-                              xmlns="http://www.w3.org/2000/svg"
-                            >
-                              <path
-                                d="M10.0915 0.951972L10.0867 0.946075L10.0813 0.940568C9.90076 0.753564 9.61034 0.753146 9.42927 0.939309L4.16201 6.22962L1.58507 3.63469C1.40401 3.44841 1.11351 3.44879 0.932892 3.63584C0.755703 3.81933 0.755703 4.10875 0.932892 4.29224L0.932878 4.29225L0.934851 4.29424L3.58046 6.95832C3.73676 7.11955 3.94983 7.2 4.1473 7.2C4.36196 7.2 4.55963 7.11773 4.71406 6.9584L10.0468 1.60234C10.2436 1.4199 10.2421 1.1339 10.0915 0.951972ZM4.2327 6.30081L4.2317 6.2998C4.23206 6.30015 4.23237 6.30049 4.23269 6.30082L4.2327 6.30081Z"
-                                fill="#3056D3"
-                                stroke="#3056D3"
-                                strokeWidth="0.4"
-                              />
-                            </svg>
-                          </span>
-                        </div>
-                      </div>
-                      <span>
-                        By creating account means you agree to the
-                        <a href="#0" className="text-primary hover:underline">
-                          {" "}
-                          Terms and Conditions{" "}
-                        </a>
-                        , and our
-                        <a href="#0" className="text-primary hover:underline">
-                          {" "}
-                          Privacy Policy{" "}
-                        </a>
-                      </span>
+                      By creating an account, you agree to the
+                      <a href="#0" className="text-primary hover:underline">
+                        {" "}Terms and Conditions{" "}
+                      </a>
+                      and our
+                      <a href="#0" className="text-primary hover:underline">
+                        {" "}Privacy Policy{" "}
+                      </a>
                     </label>
                   </div>
+                  {errors.isChecked && <p className="text-red-500">{String(errors.isChecked.message)}</p>}
                   <div className="mb-6">
                     <button className="shadow-submit dark:shadow-submit-dark flex w-full items-center justify-center rounded-sm bg-primary px-9 py-4 text-base font-medium text-white duration-300 hover:bg-primary/90">
                       Sign up

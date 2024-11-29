@@ -4,6 +4,9 @@ import { useState } from "react";
 import { signInUser } from "../../actions/actions"; // Adjust the import path as necessary
 import Head from "next/head";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
 
 
 const SigninPage = () => {
@@ -17,6 +20,20 @@ const SigninPage = () => {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const schema = z.object({
+    username: z.string().min(1, "Username is required"),
+    password: z.string()
+      .min(6, "Password must be at least 6 characters long")
+      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+      .regex(/[0-9]/, "Password must contain at least one number")
+      .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+  });
+
+  const { register, handleSubmit, formState: { errors } } = useForm({
+    resolver: zodResolver(schema)
+  });
+
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -24,12 +41,11 @@ const SigninPage = () => {
     });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitForm = async (data: any) => {
     try {
       const response = await signInUser({
-        username: formData.username,
-        password: formData.password,
+        username: data.username,
+        password: data.password,
       });
 
       if (!response.is_verified) {
@@ -67,7 +83,7 @@ const SigninPage = () => {
               </p>
               {error && <p className="text-red-500 text-center">{error}</p>}
               {success && <p className="text-green-500 text-center">{success}</p>}
-              <form onSubmit={handleSubmit}>
+              <form onSubmit={handleSubmit(handleSubmitForm)}>
                 <div className="mb-8">
                   <label
                     htmlFor="username"
@@ -77,12 +93,11 @@ const SigninPage = () => {
                   </label>
                   <input
                     type="text"
-                    name="username"
+                    {...register("username")}
                     placeholder="Enter your Username"
-                    value={formData.username}
-                    onChange={handleChange}
                     className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                   />
+                  {errors.username && <p className="text-red-500">{String(errors.username.message)}</p>}
                 </div>
                 <div className="mb-8">
                   <label
@@ -93,12 +108,11 @@ const SigninPage = () => {
                   </label>
                   <input
                     type="password"
-                    name="password"
+                    {...register("password")}
                     placeholder="Enter your Password"
-                    value={formData.password}
-                    onChange={handleChange}
                     className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                   />
+                  {errors.password && <p className="text-red-500">{String(errors.password.message)}</p>}
                 </div>
                 <div className="mb-8 flex justify-center items-center">
                   <p className="text-sm text-center whitespace-nowrap">
