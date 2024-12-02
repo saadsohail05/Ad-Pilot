@@ -8,11 +8,17 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { useAuth } from "@/context/AuthContext";
+import { useEffect } from "react";
+
 
 const SigninPage = () => {
   const router = useRouter();
   const { refreshUser } = useAuth();
-  
+
+  useEffect(() => {
+    document.title = "Sign In | Ad Pilot";
+  }, []);
+
   const [formData, setFormData] = useState({
     username: "",
     password: "",
