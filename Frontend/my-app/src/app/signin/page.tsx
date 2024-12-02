@@ -7,10 +7,11 @@ import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-
+import { useAuth } from "@/context/AuthContext";
 
 const SigninPage = () => {
   const router = useRouter();
+  const { refreshUser } = useAuth();
   
   const [formData, setFormData] = useState({
     username: "",
@@ -50,19 +51,22 @@ const SigninPage = () => {
 
       if (!response.is_verified) {
         setError("Please verify your email before signing in");
-        // Redirect to verification page
         router.push(`/verification?email=${encodeURIComponent(response.email)}`);
         return;
       }
 
-      setSuccess("Sign in successful!");
-      setError("");
-      // Store tokens and handle successful sign-in
+      // Store tokens first
       localStorage.setItem('access_token', response.access_token);
       localStorage.setItem('refresh_token', response.refresh_token);
       
-      // Redirect to dashboard or home page
-      router.push('/dashboard');
+      // Then refresh user state
+      await refreshUser();
+      
+      setSuccess("Sign in successful!");
+      setError("");
+
+      // Finally redirect
+      router.push('/');
     } catch (err: any) {
       setError(err.message);
       setSuccess("");
