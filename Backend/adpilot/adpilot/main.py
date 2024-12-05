@@ -12,6 +12,7 @@ from adpilot.models import User, Token, RefreshTokenData, TokenData, Register_Us
 from fastapi.middleware.cors import CORSMiddleware
 from adpilot.email import send_verification_email
 import subprocess
+from adpilot.router import content  # Add this import
 
 
 @asynccontextmanager
@@ -38,6 +39,7 @@ app.add_middleware(
 )
 
 app.include_router(user.user_router)
+app.include_router(content.content_router)  # Add this line
 
 @app.get("/")
 async def root():
