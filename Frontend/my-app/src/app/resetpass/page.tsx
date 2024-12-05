@@ -1,83 +1,64 @@
 "use client"
 import Link from "next/link";
 import { useState } from "react";
-import { signInUser } from "../../actions/actions"; // Adjust the import path as necessary
-import Head from "next/head";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useAuth } from "@/context/AuthContext";
 import { useEffect } from "react";
+import { requestPasswordReset, verifyEmail } from "../actions/actions";
 
 
-const SigninPage = () => {
+const ResetPasswordPage = () => {
   const router = useRouter();
-  const { refreshUser } = useAuth();
 
   useEffect(() => {
-    document.title = "Sign In | Ad Pilot";
+    document.title = "Reset Password | Ad Pilot";
   }, []);
-
-  const [formData, setFormData] = useState({
-    username: "",
-    password: "",
-  });
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [isCodeSent, setIsCodeSent] = useState(false);
 
   const schema = z.object({
-    username: z.string()
-      .min(3, "Username must be at least 3 characters")
-      .max(20, "Username must be at most 20 characters")
-      .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and dashes")
-      .refine((val) => !val.startsWith(' ') && !val.endsWith(' '), "Username cannot have leading or trailing spaces"),
-    password: z.string()
-      .min(6, "Password must be at least 6 characters long")
-      .max(50, "Password must not exceed 50 characters")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number")
-      .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+    email: z.string().email("Please enter a valid email address"),
+    verificationCode: z.string()
+      .min(8, "Verification code must be 8 characters")
+      .max(8, "Verification code must be 8 characters")
+      .regex(/^\d+$/, "Verification code must contain only numbers")
   });
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const { register, handleSubmit, formState: { errors }, getValues } = useForm({
     resolver: zodResolver(schema)
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+  const handleSendCode = async () => {
+    const email = getValues("email");
+    if (!email) {
+      setError("Please enter your email first");
+      return;
+    }
+    
+    try {
+      const result = await requestPasswordReset(email);
+      setIsCodeSent(true);
+      setSuccess(result.message);
+      setError("");
+    } catch (err: any) {
+      setError(err.message);
+      setSuccess("");
+    }
   };
 
   const handleSubmitForm = async (data: any) => {
     try {
-      const response = await signInUser({
-        username: data.username,
-        password: data.password,
+      const email = getValues("email");
+      const result = await verifyEmail({ 
+        verification_code: data.verificationCode 
       });
-
-      if (!response.is_verified) {
-        setError("Please verify your email before signing in");
-        router.push(`/verification?email=${encodeURIComponent(response.email)}`);
-        return;
+      if (result.message) {
+        router.push(`/forgotpassword?email=${encodeURIComponent(email)}&code=${data.verificationCode}`);
       }
-
-      // Store tokens first
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('refresh_token', response.refresh_token);
-      
-      // Then refresh user state
-      await refreshUser();
-      
-      setSuccess("Sign in successful!");
-      setError("");
-
-      // Finally redirect
-      router.push('/');
     } catch (err: any) {
       setError(err.message);
       setSuccess("");
@@ -91,62 +72,68 @@ const SigninPage = () => {
           <div className="w-full px-4">
             <div className="shadow-three mx-auto max-w-[500px] rounded bg-white px-6 py-10 dark:bg-dark sm:p-[60px]">
               <h3 className="mb-3 text-center text-2xl font-bold text-black dark:text-white sm:text-3xl">
-                Sign in to your account
+                Reset Your Password
               </h3>
               <p className="mb-11 text-center text-base font-medium text-body-color">
-                Login to your account for a faster checkout.
+                Enter your email to receive a verification code
               </p>
               {error && <p className="text-red-500 text-center">{error}</p>}
               {success && <p className="text-green-500 text-center">{success}</p>}
               <form onSubmit={handleSubmit(handleSubmitForm)}>
                 <div className="mb-8">
                   <label
-                    htmlFor="username"
+                    htmlFor="email"
                     className="mb-3 block text-sm text-dark dark:text-white"
                   >
-                    Your Username
+                    Your Email
                   </label>
                   <input
-                    type="text"
-                    {...register("username")}
-                    placeholder="Enter your Username"
+                    type="email"
+                    {...register("email")}
+                    placeholder="Enter your email"
                     className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                   />
-                  {errors.username && <p className="text-red-500">{String(errors.username.message)}</p>}
+                  {errors.email && <p className="text-red-500">{String(errors.email.message)}</p>}
                 </div>
                 <div className="mb-8">
-                  <label
-                    htmlFor="password"
-                    className="mb-3 block text-sm text-dark dark:text-white"
-                  >
-                    Your Password
-                  </label>
-                  <input
-                    type="password"
-                    {...register("password")}
-                    placeholder="Enter your Password"
-                    className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
-                  />
-                  {errors.password && <p className="text-red-500">{String(errors.password.message)}</p>}
-                </div>
-                <div className="mb-8 flex justify-center items-center">
-                  <p className="text-sm text-center whitespace-nowrap">
-                    <span className="text-body-color">Don't worry if you've forgotten your password - </span>
-                    <Link href="/resetpass" className="text-primary hover:underline">
-                      Reset it here
-                    </Link>
-                  </p>
+                  <div className="flex items-center gap-4">
+                    <div className="flex-grow">
+                      <label
+                        htmlFor="verificationCode"
+                        className="mb-3 block text-sm text-dark dark:text-white"
+                      >
+                        Verification Code
+                      </label>
+                      <input
+                        type="text"
+                        {...register("verificationCode")}
+                        placeholder="Enter 6-digit code"
+                        className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleSendCode}
+                      className="mt-8 px-4 py-3 text-sm font-medium text-white bg-primary rounded-sm hover:bg-primary/90"
+                    >
+                      Send Code
+                    </button>
+                  </div>
+                  {errors.verificationCode && <p className="text-red-500">{String(errors.verificationCode.message)}</p>}
                 </div>
                 <div className="mb-6">
-                  <button className="shadow-submit dark:shadow-submit-dark flex w-full items-center justify-center rounded-sm bg-primary px-9 py-4 text-base font-medium text-white duration-300 hover:bg-primary/90">
-                    Sign in
+                  <button 
+                    type="submit"
+                    className="shadow-submit dark:shadow-submit-dark flex w-full items-center justify-center rounded-sm bg-primary px-9 py-4 text-base font-medium text-white duration-300 hover:bg-primary/90"
+                  >
+                    Verify & Continue
                   </button>
                 </div>
               </form>
               <p className="text-center text-base font-medium text-body-color">
-                Don’t you have an account?{" "}
-                <Link href="/signup" className="text-primary hover:underline">
-                  Sign up
+                Remember your password?{" "}
+                <Link href="/signin" className="text-primary hover:underline">
+                  Sign in
                 </Link>
               </p>
             </div>
@@ -214,4 +201,5 @@ const SigninPage = () => {
   );
 };
 
-export default SigninPage;
+export default ResetPasswordPage;
+

@@ -13,6 +13,11 @@ from adpilot.utils import verify_email_exists  # Add this import at the top
 class EmailRequest(BaseModel):
     email: str
 
+class ResetPasswordRequest(BaseModel):
+    email: str
+    verification_code: str
+    new_password: str
+
 user_router = APIRouter(
     prefix="/user",
     tags=["user"],
@@ -151,3 +156,38 @@ async def resend_verification(
 
     background_tasks.add_task(send_verification_email, email_data.email)
     return {"message": "Verification Code Resent successfully"}
+
+@user_router.post("/request-password-reset", response_model=dict)
+async def request_password_reset(
+    email_data: EmailRequest,
+    background_tasks: BackgroundTasks,
+    session: Annotated[Session, Depends(get_session)]
+):
+    user = get_user_from_db(session, email=email_data.email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    background_tasks.add_task(send_verification_email, email_data.email)
+    return {"message": "Password reset verification code sent"}
+
+@user_router.post("/reset-password", response_model=dict)
+async def reset_password(
+    reset_data: ResetPasswordRequest,
+    session: Annotated[Session, Depends(get_session)]
+):
+    # Verify the code
+    email = verify_token(reset_data.verification_code)
+    if not email or email != reset_data.email:
+        raise HTTPException(status_code=400, detail="Invalid verification code")
+    
+    # Get the user and update password
+    user = get_user_from_db(session, email=email)
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Hash the new password
+    user.password = hash_password(reset_data.new_password)
+    session.add(user)
+    session.commit()
+    
+    return {"message": "Password reset successful"}

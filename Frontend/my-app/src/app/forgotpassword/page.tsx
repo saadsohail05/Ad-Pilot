@@ -1,83 +1,58 @@
 "use client"
 import Link from "next/link";
-import { useState } from "react";
-import { signInUser } from "../../actions/actions"; // Adjust the import path as necessary
-import Head from "next/head";
-import { useRouter } from "next/navigation";
+import { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
-import { useAuth } from "@/context/AuthContext";
-import { useEffect } from "react";
+import { resetPassword } from "../actions/actions";
 
-
-const SigninPage = () => {
+const ResetPasswordPage = () => {
   const router = useRouter();
-  const { refreshUser } = useAuth();
+  const searchParams = useSearchParams();
+  const email = searchParams.get('email');
 
   useEffect(() => {
-    document.title = "Sign In | Ad Pilot";
+    document.title = "Reset Password | Ad Pilot";
   }, []);
-
-  const [formData, setFormData] = useState({
-    username: "",
-    password: "",
-  });
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const schema = z.object({
-    username: z.string()
-      .min(3, "Username must be at least 3 characters")
-      .max(20, "Username must be at most 20 characters")
-      .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and dashes")
-      .refine((val) => !val.startsWith(' ') && !val.endsWith(' '), "Username cannot have leading or trailing spaces"),
-    password: z.string()
-      .min(6, "Password must be at least 6 characters long")
-      .max(50, "Password must not exceed 50 characters")
-      .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
-      .regex(/[a-z]/, "Password must contain at least one lowercase letter")
-      .regex(/[0-9]/, "Password must contain at least one number")
-      .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+    newPassword: z.string()
+    .min(6, "Password must be at least 6 characters long")
+    .max(50, "Password must not exceed 50 characters")
+    .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
+    .regex(/[a-z]/, "Password must contain at least one lowercase letter")
+    .regex(/[0-9]/, "Password must contain at least one number")
+    .regex(/[^A-Za-z0-9]/, "Password must contain at least one special character"),
+    confirmPassword: z.string()
+  }).refine((data) => data.newPassword === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
   });
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(schema)
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
-  };
-
   const handleSubmitForm = async (data: any) => {
+    if (!email) {
+      setError("Email not found in URL parameters");
+      return;
+    }
+
     try {
-      const response = await signInUser({
-        username: data.username,
-        password: data.password,
+      const result = await resetPassword({
+        email,
+        verification_code: searchParams.get('code') || '',
+        new_password: data.newPassword
       });
-
-      if (!response.is_verified) {
-        setError("Please verify your email before signing in");
-        router.push(`/verification?email=${encodeURIComponent(response.email)}`);
-        return;
-      }
-
-      // Store tokens first
-      localStorage.setItem('access_token', response.access_token);
-      localStorage.setItem('refresh_token', response.refresh_token);
-      
-      // Then refresh user state
-      await refreshUser();
-      
-      setSuccess("Sign in successful!");
-      setError("");
-
-      // Finally redirect
-      router.push('/');
+      setSuccess(result.message);
+      setTimeout(() => {
+        router.push('/signin');
+      }, 2000);
     } catch (err: any) {
       setError(err.message);
       setSuccess("");
@@ -91,62 +66,57 @@ const SigninPage = () => {
           <div className="w-full px-4">
             <div className="shadow-three mx-auto max-w-[500px] rounded bg-white px-6 py-10 dark:bg-dark sm:p-[60px]">
               <h3 className="mb-3 text-center text-2xl font-bold text-black dark:text-white sm:text-3xl">
-                Sign in to your account
+                Reset Your Password
               </h3>
               <p className="mb-11 text-center text-base font-medium text-body-color">
-                Login to your account for a faster checkout.
+                Enter your new password
               </p>
               {error && <p className="text-red-500 text-center">{error}</p>}
               {success && <p className="text-green-500 text-center">{success}</p>}
               <form onSubmit={handleSubmit(handleSubmitForm)}>
                 <div className="mb-8">
                   <label
-                    htmlFor="username"
+                    htmlFor="newPassword"
                     className="mb-3 block text-sm text-dark dark:text-white"
                   >
-                    Your Username
-                  </label>
-                  <input
-                    type="text"
-                    {...register("username")}
-                    placeholder="Enter your Username"
-                    className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
-                  />
-                  {errors.username && <p className="text-red-500">{String(errors.username.message)}</p>}
-                </div>
-                <div className="mb-8">
-                  <label
-                    htmlFor="password"
-                    className="mb-3 block text-sm text-dark dark:text-white"
-                  >
-                    Your Password
+                    New Password
                   </label>
                   <input
                     type="password"
-                    {...register("password")}
-                    placeholder="Enter your Password"
+                    {...register("newPassword")}
+                    placeholder="Enter new password"
                     className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
                   />
-                  {errors.password && <p className="text-red-500">{String(errors.password.message)}</p>}
+                  {errors.newPassword && <p className="text-red-500">{String(errors.newPassword.message)}</p>}
                 </div>
-                <div className="mb-8 flex justify-center items-center">
-                  <p className="text-sm text-center whitespace-nowrap">
-                    <span className="text-body-color">Don't worry if you've forgotten your password - </span>
-                    <Link href="/resetpass" className="text-primary hover:underline">
-                      Reset it here
-                    </Link>
-                  </p>
+                <div className="mb-8">
+                  <label
+                    htmlFor="confirmPassword"
+                    className="mb-3 block text-sm text-dark dark:text-white"
+                  >
+                    Confirm Password
+                  </label>
+                  <input
+                    type="password"
+                    {...register("confirmPassword")}
+                    placeholder="Confirm new password"
+                    className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
+                  />
+                  {errors.confirmPassword && <p className="text-red-500">{String(errors.confirmPassword.message)}</p>}
                 </div>
                 <div className="mb-6">
-                  <button className="shadow-submit dark:shadow-submit-dark flex w-full items-center justify-center rounded-sm bg-primary px-9 py-4 text-base font-medium text-white duration-300 hover:bg-primary/90">
-                    Sign in
+                  <button 
+                    type="submit"
+                    className="shadow-submit dark:shadow-submit-dark flex w-full items-center justify-center rounded-sm bg-primary px-9 py-4 text-base font-medium text-white duration-300 hover:bg-primary/90"
+                  >
+                    Reset Password
                   </button>
                 </div>
               </form>
               <p className="text-center text-base font-medium text-body-color">
-                Don’t you have an account?{" "}
-                <Link href="/signup" className="text-primary hover:underline">
-                  Sign up
+                Remember your password?{" "}
+                <Link href="/signin" className="text-primary hover:underline">
+                  Sign in
                 </Link>
               </p>
             </div>
@@ -214,4 +184,4 @@ const SigninPage = () => {
   );
 };
 
-export default SigninPage;
+export default ResetPasswordPage;

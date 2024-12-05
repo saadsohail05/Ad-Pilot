@@ -54,6 +54,12 @@ const menuData: Menu[] = [
         path: "/verification",
         newTab: false,
       },
+      {
+        id: 50,
+        title: "Pass Reset",
+        path: "/forgotpassword",
+        newTab: false,
+      },
     ],
   },
 ];

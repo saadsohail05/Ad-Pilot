@@ -20,16 +20,46 @@ const VerificationPage = () => {
   const [isResending, setIsResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState("");
   const [resendError, setResendError] = useState("");
+  const [validationError, setValidationError] = useState("");
+
+  const validateVerificationCode = (code: string): boolean => {
+    if (!code) {
+      setValidationError("Verification code is required");
+      return false;
+    }
+    if (code.length !== 8) {
+      setValidationError("Verification code must be 8 digits");
+      return false;
+    }
+    if (!/^\d+$/.test(code)) {
+      setValidationError("Verification code must contain only numbers");
+      return false;
+    }
+    setValidationError("");
+    return true;
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    const value = e.target.value;
+    // Only allow numbers and limit to 6 characters
+    if (value === '' || (/^\d+$/.test(value) && value.length <= 6)) {
+      setFormData({
+        ...formData,
+        [e.target.name]: value,
+      });
+    }
+    // Clear validation error when user starts typing
+    if (validationError) setValidationError("");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validate before submission
+    if (!validateVerificationCode(formData.verificationCode)) {
+      return;
+    }
+
     try {
       const response = await verifyEmail({
         verification_code: formData.verificationCode,
@@ -83,6 +113,7 @@ const VerificationPage = () => {
                 <p className="mb-11 text-center text-base font-medium text-body-color">
                   {email ? `Verify your account for ${email}` : 'Verify your account to access all features'}
                 </p>
+                {validationError && <p className="text-red-500 text-center mb-4">{validationError}</p>}
                 {error && <p className="text-red-500 text-center mb-4">{error}</p>}
                 {success && <p className="text-green-500 text-center mb-4">{success}</p>}
                 {resendError && <p className="text-red-500 text-center mb-4">{resendError}</p>}
@@ -98,10 +129,13 @@ const VerificationPage = () => {
                     <input
                       type="text"
                       name="verificationCode"
-                      placeholder="Enter your Verification Code"
+                      placeholder="Enter 6-digit verification code"
                       value={formData.verificationCode}
                       onChange={handleChange}
-                      className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
+                      maxLength={6}
+                      className={`border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none ${
+                        validationError ? 'border-red-500' : ''
+                      }`}
                     />
                   </div>
                   <div className="mb-6">
