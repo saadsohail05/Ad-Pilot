@@ -9,19 +9,18 @@ class LlamaAPI:
 
     async def generate_content(self, prompt: str, model: str = "llama3.2") -> str:
         """
-        Generate content using the Llama model's generate endpoint with fixed parameters
+        Generate content using the Llama model's generate endpoint with optimized parameters
         """
         payload = {
             "model": model,
             "prompt": prompt,
             "stream": False,
             "options": {
-                "num_predict": 100,
-                "top_k": 10,
-                "top_p": 0.7,
-                "temperature": 0.6
-                # "num_ctx": 512,
-                # "num_batch": 1
+                "num_predict": 1000,  # Increased for longer responses
+                "top_k": 40,         # Increased for more diverse responses
+                "top_p": 0.9,        # Increased for more creative responses
+                "temperature": 0.8,   # Increased for more creative responses
+                "repeat_penalty": 1.2 # Added to prevent repetition
             }
         }
         
