@@ -20,10 +20,25 @@ const SignupPage = () => {
   }, []);
 
   const schema = z.object({
-    username: z.string().min(1, "Username is required"),
+    first_name: z.string()
+      .min(2, "First name must be at least 2 characters")
+      .max(50, "First name must not exceed 50 characters")
+      .regex(/^[a-zA-Z\s\-\.]+$/, "First name can only contain letters, spaces, hyphens, and dots")
+      .refine((val) => !val.startsWith(' ') && !val.endsWith(' '), "First name cannot have leading or trailing spaces"),
+    last_name: z.string()
+      .min(2, "Last name must be at least 2 characters")
+      .max(50, "Last name must not exceed 50 characters")
+      .regex(/^[a-zA-Z\s\-\.]+$/, "Last name can only contain letters, spaces, hyphens, and dots")
+      .refine((val) => !val.startsWith(' ') && !val.endsWith(' '), "Last name cannot have leading or trailing spaces"),
+    username: z.string()
+      .min(3, "Username must be at least 3 characters")
+      .max(20, "Username must be at most 20 characters")
+      .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and dashes")
+      .refine((val) => !val.startsWith(' ') && !val.endsWith(' '), "Username cannot have leading or trailing spaces"),
     email: z.string().email("Invalid email address"),
     password: z.string()
       .min(6, "Password must be at least 6 characters long")
+      .max(50, "Password must not exceed 50 characters")
       .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
       .regex(/[a-z]/, "Password must contain at least one lowercase letter")
       .regex(/[0-9]/, "Password must contain at least one number")
@@ -43,6 +58,8 @@ const SignupPage = () => {
 
     try {
       const response = await registerUser({
+        first_name: data.first_name,
+        last_name: data.last_name,
         username: data.username,
         email: data.email,
         password: data.password,
@@ -82,6 +99,36 @@ const SignupPage = () => {
                 {error && <p className="text-red-500 text-center">{error}</p>}
                 {success && <p className="text-green-500 text-center">{success}</p>}
                 <form onSubmit={handleSubmit(handleSubmitForm)}>
+                  <div className="mb-8">
+                    <label
+                      htmlFor="first_name"
+                      className="mb-3 block text-sm text-dark dark:text-white"
+                    >
+                      First Name
+                    </label>
+                    <input
+                      type="text"
+                      {...register("first_name")}
+                      placeholder="Enter your first name"
+                      className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
+                    />
+                    {errors.first_name && <p className="text-red-500">{String(errors.first_name.message)}</p>}
+                  </div>
+                  <div className="mb-8">
+                    <label
+                      htmlFor="last_name"
+                      className="mb-3 block text-sm text-dark dark:text-white"
+                    >
+                      Last Name
+                    </label>
+                    <input
+                      type="text"
+                      {...register("last_name")}
+                      placeholder="Enter your last name"
+                      className="border-stroke dark:text-body-color-dark dark:shadow-two w-full rounded-sm border bg-[#f8f8f8] px-6 py-3 text-base text-body-color outline-none transition-all duration-300 focus:border-primary dark:border-transparent dark:bg-[#2C303B] dark:focus:border-primary dark:focus:shadow-none"
+                    />
+                    {errors.last_name && <p className="text-red-500">{String(errors.last_name.message)}</p>}
+                  </div>
                   <div className="mb-8">
                     <label
                       htmlFor="username"

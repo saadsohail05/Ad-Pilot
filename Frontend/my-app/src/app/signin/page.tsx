@@ -28,9 +28,14 @@ const SigninPage = () => {
   const [success, setSuccess] = useState("");
 
   const schema = z.object({
-    username: z.string().min(1, "Username is required"),
+    username: z.string()
+      .min(3, "Username must be at least 3 characters")
+      .max(20, "Username must be at most 20 characters")
+      .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and dashes")
+      .refine((val) => !val.startsWith(' ') && !val.endsWith(' '), "Username cannot have leading or trailing spaces"),
     password: z.string()
       .min(6, "Password must be at least 6 characters long")
+      .max(50, "Password must not exceed 50 characters")
       .regex(/[A-Z]/, "Password must contain at least one uppercase letter")
       .regex(/[a-z]/, "Password must contain at least one lowercase letter")
       .regex(/[0-9]/, "Password must contain at least one number")

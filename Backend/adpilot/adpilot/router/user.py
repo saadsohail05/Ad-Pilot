@@ -64,6 +64,8 @@ async def register_user(
 
     try:
         user = User(
+            first_name=new_user.first_name,
+            last_name=new_user.last_name,
             username=new_user.username,
             email=new_user.email,
             password=hash_password(new_user.password),
