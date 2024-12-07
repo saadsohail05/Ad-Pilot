@@ -33,7 +33,10 @@ const SignupPage = () => {
     username: z.string()
       .min(3, "Username must be at least 3 characters")
       .max(20, "Username must be at most 20 characters")
-      .regex(/^[a-zA-Z0-9_-]+$/, "Username can only contain letters, numbers, underscores, and dashes")
+      .regex(
+        /^[a-zA-Z][a-zA-Z0-9_-]*[a-zA-Z]$/,
+        "Username must start and end with letters. Symbols and numbers can only be used between letters"
+      )
       .refine((val) => !val.startsWith(' ') && !val.endsWith(' '), "Username cannot have leading or trailing spaces"),
     email: z.string().email("Invalid email address"),
     password: z.string()

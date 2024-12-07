@@ -1,25 +1,14 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
-from typing import Optional
+from typing import Optional, Annotated
 from adpilot.llama_utils import llama_api
 from adpilot.marketinsights import analyze_data
-
-class GenerateRequest(BaseModel):
-    prompt: str
-    model: Optional[str] = "llama3.2"
-
-class AdGenerateRequest(BaseModel):
-    product_name: str
-    product_description: str
-    target_audience: str
-    tone: Optional[str] = "professional"
-    platform: Optional[str] = "facebook"
-    length: Optional[str] = "medium"
-
-class MarketAnalysisRequest(BaseModel):
-    product: str
-    category: str
-    description: str
+from fastapi.responses import StreamingResponse
+from adpilot.pdf_utils import create_market_analysis_pdf
+from adpilot.cache_utils import cache_report, get_latest_report
+from adpilot.adllama_utils import adllama_api  
+from adpilot.auth import current_user
+from adpilot.models import User
 
 class MarketAnalysisDetailRequest(BaseModel):
     product: str = Field(..., min_length=1, description="Name of the product")
@@ -27,15 +16,10 @@ class MarketAnalysisDetailRequest(BaseModel):
     category: str = Field(..., min_length=1, description="Market category")
     description: str = Field(..., min_length=10, description="Detailed product description")
 
-    class Config:
-        schema_extra = {
-            "example": {
-                "product": "Smart Water Bottle",
-                "product_type": "IoT Device",
-                "category": "Health Tech",
-                "description": "A smart water bottle that tracks hydration levels and syncs with mobile apps"
-            }
-        }
+class AdGenerationRequest(BaseModel):
+    product: str = Field(..., description="Name of the product")
+    description: str = Field(..., description="Detailed product description")
+    category: str = Field(..., description="Product category")
 
 content_router = APIRouter(
     prefix="/content",
@@ -43,47 +27,11 @@ content_router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-@content_router.post("/generate")
-async def generate_content(request: GenerateRequest):
-    """Generate content using the Llama model"""
-    try:
-        response = await llama_api.generate_content(
-            prompt=request.prompt,
-            model=request.model
-        )
-        return {"generated_content": response}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@content_router.post("/generate-ad")
-async def generate_ad_content(request: AdGenerateRequest):
-    """Generate ad content using the Llama model"""
-    try:
-        prompt = f"""Create a {request.length} advertisement for {request.platform} with a {request.tone} tone.
-Product: {request.product_name}
-Description: {request.product_description}
-Target Audience: {request.target_audience}"""
-        
-        response = await llama_api.generate_content(
-            prompt=prompt,
-            model="llama3.2"
-        )
-        return {
-            "status": "success",
-            "platform": request.platform,
-            "generated_content": response,
-            "metadata": {
-                "tone": request.tone,
-                "length": request.length,
-                "target_audience": request.target_audience
-            }
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
 @content_router.post("/analyze-market")
-async def analyze_market_comprehensive(request: MarketAnalysisDetailRequest):
+async def analyze_market_comprehensive(
+    request: MarketAnalysisDetailRequest,
+    current_user: Annotated[User, Depends(current_user)]  # Add this line
+):
     """Generate comprehensive market analysis using both Serper and LLaMA"""
     try:
         market_insights, competitor_analysis = analyze_data(
@@ -133,7 +81,7 @@ async def analyze_market_comprehensive(request: MarketAnalysisDetailRequest):
             model="llama3.2"
         )
 
-        return {
+        response_data = {
             "status": "success",
             "analysis_report": llama_response,
             "metadata": {
@@ -142,9 +90,77 @@ async def analyze_market_comprehensive(request: MarketAnalysisDetailRequest):
                 "product_type": request.product_type
             }
         }
+
+        # Cache only the latest report
+        cache_report(response_data)
+
+        return response_data
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Analysis generation failed: {str(e)}"
         )
+
+@content_router.get("/download-latest-report")
+async def download_latest_report(
+    current_user: Annotated[User, Depends(current_user)]  # Add this line
+):
+    """Download the most recently generated market analysis report as PDF"""
+    try:
+        # Get latest report from cache
+        report_data = get_latest_report()
+        if not report_data:
+            raise HTTPException(
+                status_code=404, 
+                detail="No recent report found. Please generate a new report first."
+            )
+        
+        # Generate PDF from report
+        pdf_buffer = create_market_analysis_pdf(report_data)
+        
+        product_name = report_data.get("metadata", {}).get("product", "report")
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={
+                'Content-Disposition': f'attachment; filename="market_analysis_{product_name}.pdf"'
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"PDF generation failed: {str(e)}"
+        )
+
+@content_router.post("/generate-ad")
+async def generate_advertisement(
+    request: AdGenerationRequest,
+    current_user: Annotated[User, Depends(current_user)]  # Add this line
+):
+    """Generate a concise advertisement for a product"""
+    try:
+        prompt = {
+            "role": "user",
+            "content": f"Generate a concise 100-word advertisement for the following product:\n"
+                      f"Product: {request.product}\n"
+                      f"Description: {request.description}\n"
+                      f"Category: {request.category}"
+        }
+
+        ad_content = await adllama_api.generate_content(prompt=prompt["content"])
+
+        return {
+            "status": "success",
+            "advertisement": ad_content,
+            "metadata": {
+                "product": request.product,
+                "category": request.category
+            }
+        }
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Advertisement generation failed: {str(e)}"
+        )
+
 
