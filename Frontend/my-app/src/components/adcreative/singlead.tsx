@@ -1,7 +1,7 @@
-import { Blog } from "@/types/blog";
+import { Ad } from "@/types/ad";  // Updated import
 import Image from "next/image";
 
-const SingleBlog = ({ blog }: { blog: Blog }) => {
+const SingleBlog = ({ blog }: { blog: Ad }) => {  // Updated type
   const { title, image, paragraph, author, tags, publishDate } = blog;
   return (
     <div className="group relative overflow-hidden rounded-sm bg-white shadow-one duration-300 hover:shadow-two dark:bg-dark dark:hover:shadow-gray-dark">

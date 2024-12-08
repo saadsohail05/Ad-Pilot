@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Form
-from typing import Annotated
+from typing import Annotated, Optional
 from pydantic import BaseModel
 from adpilot.models import Register_User, User, Ads  # Add Ads to imports
 from adpilot.db import get_session
@@ -241,16 +241,24 @@ async def create_ad(
 @user_router.get("/ads", response_model=dict)
 async def get_all_ads(
     session: Annotated[Session, Depends(get_session)],
-    current_user: Annotated[User, Depends(current_user)]
+    skip: int = 0,
+    limit: int = 6
 ):
     try:
-        statement = select(Ads)
+        # Get total count
+        total = session.exec(select(Ads)).all().__len__()
+        
+        # Get paginated ads
+        statement = select(Ads).offset(skip).limit(limit)
         ads = session.exec(statement).all()
         
         return {
             "message": "Ads retrieved successfully",
             "status": "success",
             "status_code": 200,
+            "total": total,
+            "page": skip // limit + 1,
+            "total_pages": (total + limit - 1) // limit,
             "ads": [
                 {
                     "id": ad.id,
