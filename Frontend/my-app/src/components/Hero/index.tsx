@@ -1,7 +1,21 @@
+"use client"
 import Link from 'next/link'
 import { ArrowRight, Star } from 'lucide-react'
+import { useAuth } from "@/context/AuthContext"  // Add this import
+import { useRouter } from 'next/navigation'  // Add this import
 
 const Hero = () => {
+  const { user } = useAuth();  // Add this
+  const router = useRouter();  // Add this
+
+  const handleGetStarted = () => {
+    if (!user) {
+      router.push('/signin');
+    } else {
+      router.push('/createcampaign');
+    }
+  };
+
   return (
     <>
       <section
@@ -22,13 +36,13 @@ const Hero = () => {
                   Adpilot is your AI-powered copilot for creating, managing, and optimizing ad campaigns across multiple platforms. Boost your ROI with data-driven insights and automated optimization.
                 </p>
                 <div className="flex flex-col items-center justify-center space-y-4 sm:flex-row sm:space-x-4 sm:space-y-0">
-                  <Link
-                    href="/get-started"
+                  <button
+                    onClick={handleGetStarted}
                     className="group inline-flex items-center justify-center rounded-full bg-primary px-8 py-4 text-lg font-semibold text-white shadow-lg transition-all duration-300 ease-in-out hover:bg-primary-600 hover:shadow-primary-500/25 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 dark:shadow-lg dark:shadow-primary-800/80"
                   >
-                    Get Started Free
+                    {user ? 'Get Started' : 'Sign in to Get Started'}
                     <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 ease-in-out group-hover:translate-x-1" />
-                  </Link>
+                  </button>
                   <Link
                     href="https://github.com/saadsohail05/Ad-Pilot"
                     className="group inline-flex items-center justify-center rounded-full bg-white px-8 py-4 text-lg font-semibold text-gray-900 shadow-lg transition-all duration-300 ease-in-out hover:bg-gray-50 hover:shadow-gray-500/25 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 dark:bg-gray-800 dark:text-white dark:hover:bg-gray-700 dark:shadow-lg dark:shadow-gray-800/80"
