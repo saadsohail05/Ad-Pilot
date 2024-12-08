@@ -1,7 +1,7 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { Rocket } from 'lucide-react';
+import { Rocket, User } from 'lucide-react';
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import ThemeToggler from "./ThemeToggler";
@@ -165,9 +165,12 @@ const Header = () => {
               <div className="flex items-center justify-end pr-16 lg:pr-0">
                 {user ? (
                   <div className="flex items-center space-x-4">
-                    <span className="text-dark dark:text-white">
-                      Logged in as <span className="border-b-2 border-primary pb-1 font-medium">{user.username}</span>
-                    </span>
+                    <div className="flex items-center space-x-2">
+                      <User className="h-5 w-5 text-primary" />
+                      <span className="border-b-2 border-primary pb-1 font-medium text-dark dark:text-white">
+                        {user.username}
+                      </span>
+                    </div>
                     <button
                       onClick={handleSignOut}
                       className="ease-in-up shadow-btn hover:shadow-btn-hover rounded-sm bg-primary px-8 py-3 text-base font-medium text-white transition duration-300 hover:bg-opacity-90"
