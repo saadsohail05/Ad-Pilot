@@ -193,28 +193,21 @@ async def download_latest_report(
 @content_router.post("/generate-ad")
 async def generate_advertisement(
     request: AdGenerationRequest,
-    current_user: Annotated[User, Depends(current_user)]  # Add this line
+    current_user: Annotated[User, Depends(current_user)]
 ):
     """Generate a concise advertisement for a product"""
     try:
-        prompt = {
-            "role": "user",
-            "content": f"Generate a concise 100-word advertisement for the following product:\n"
-                      f"Product: {request.product}\n"
-                      f"Description: {request.description}\n"
-                      f"Category: {request.category}"
-        }
+        prompt = (
+            f"Generate a concise 100-word advertisement for the following product:\n"
+            f"Product: {request.product}\n"
+            f"Description: {request.description}\n"
+            f"Category: {request.category}\n\n"
+            f"Make it attention-grabbing, highlight key benefits, and include a clear call-to-action."
+        )
+        
+        response = await adllama_api.generate_content(prompt=prompt)
+        return {"content": response}
 
-        ad_content = await adllama_api.generate_content(prompt=prompt["content"])
-
-        return {
-            "status": "success",
-            "advertisement": ad_content,
-            "metadata": {
-                "product": request.product,
-                "category": request.category
-            }
-        }
     except Exception as e:
         raise HTTPException(
             status_code=500,

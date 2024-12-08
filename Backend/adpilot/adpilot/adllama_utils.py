@@ -1,4 +1,3 @@
-
 import aiohttp
 from fastapi import HTTPException
 from typing import Optional
@@ -10,15 +9,15 @@ class AdLlamaAPI:
 
     async def generate_content(self, prompt: str, model: str = "adllama") -> str:
         """
-        Generate content using the AdLlama model's generate endpoint with optimized parameters
+        Generate content using the AdLlama model's generate endpoint
         """
         payload = {
             "model": model,
             "prompt": prompt,
             "stream": False,
             "options": {
-                "min_p": 0.1,        # Increased for more creative responses
-                "temperature": 1.5,   # Increased for more creative responses
+                "min_p": 0.1,        # Restored original option
+                "temperature": 1.5,   # Restored original option
             }
         }
         

@@ -4,7 +4,7 @@ import { useTheme } from "next-themes";
 
 interface ContentGenerationBoxProps {
   content: string;
-  onRetry?: () => void;
+  onRetry: () => Promise<void>;
   onApprove?: () => void;
 }
 
@@ -48,7 +48,7 @@ const ContentGenerationBox = ({
           Approve
         </button>
         <button
-          onClick={onRetry}
+          onClick={() => onRetry()}
           className="flex items-center gap-2 px-6 py-2 rounded-md bg-gray-600 hover:bg-gray-700 text-white"
         >
           {/* Modern Retry Icon */}
@@ -63,7 +63,7 @@ const ContentGenerationBox = ({
               strokeLinecap="round"
               strokeLinejoin="round"
               strokeWidth="2"
-              d="M12 2v4m0 0l2-2m-2 2l-2-2M12 16v4m0 0l-2-2m2 2l2-2M21 12c0 4.418-3.582 8-8 8s-8-3.582-8-8 3.582-8 8-8 8 3.582 8 8z"
+              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
             />
           </svg>
           Retry
