@@ -5,15 +5,26 @@ import { useTheme } from "next-themes";
 interface ContentGenerationBoxProps {
   content: string;
   onRetry: () => Promise<void>;
-  onApprove?: () => void;
+  onApprove: (content: string) => Promise<void>;  // Modified this line
+  productData?: {
+    productname: string;
+    product_category: string;
+  };
 }
 
 const ContentGenerationBox = ({
   content,
   onRetry,
   onApprove,
+  productData
 }: ContentGenerationBoxProps) => {
   const { theme } = useTheme();
+
+  const handleApprove = async () => {
+    if (onApprove) {
+      await onApprove(content);
+    }
+  };
 
   return (
     <div className="relative z-10 rounded-xl bg-white p-8 shadow-lg dark:bg-gray-dark sm:p-11 lg:p-8 xl:p-11">
@@ -27,7 +38,7 @@ const ContentGenerationBox = ({
 
       <div className="flex justify-end gap-3">
         <button
-          onClick={onApprove}
+          onClick={handleApprove}  // Modified this line
           className="flex items-center gap-2 px-5 py-2 mr-10 rounded-md bg-green-500 hover:bg-green-600 text-white"
         >
           {/* Modern Approve Icon */}

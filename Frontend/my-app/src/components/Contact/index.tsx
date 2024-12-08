@@ -70,6 +70,42 @@ const Contact = () => {
     }
   };
 
+  const handleApprove = async (content: string) => {
+    try {
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      const adData = {
+        adcopy: content,
+        imglink: "",  // Empty as requested
+        productname: formData.product,
+        product_category: formData.category
+      };
+
+      const response = await fetch('http://localhost:8000/user/create-ad', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(adData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to save ad');
+      }
+
+      // Just clear the form and generated content after successful save
+      setGeneratedContent("");
+      setFormData(null);
+      
+    } catch (error) {
+      console.error('Error saving ad:', error);
+      setError((error as Error).message || 'Failed to save ad');
+    }
+  };
+
   return (
     <section id="contact" className="overflow-hidden py-16 md:py-20 lg:py-28">
       <div className="container">
@@ -234,6 +270,8 @@ const Contact = () => {
               <NewsLatterBox 
                 content={generatedContent} 
                 onRetry={handleRetry}
+                onApprove={handleApprove}
+                productData={formData}
               />
             )}
           </div>
