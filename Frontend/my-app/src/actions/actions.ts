@@ -119,3 +119,53 @@ export const resendVerification = async (email: string): Promise<{ message: stri
     throw error;
   }
 };
+
+export const analyzeMarket = async (
+  data: {
+    product: string;
+    product_type: string;
+    category: string;
+    description: string;
+  },
+  token: string,
+  onChunk: (chunk: string) => void
+): Promise<void> => {
+  try {
+    const response = await fetch("http://localhost:8000/content/analyze-market", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.detail || 'Failed to analyze market');
+    }
+
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6);
+          if (data === '[DONE]') return;
+          onChunk(data);
+        }
+      }
+    }
+  } catch (error: any) {
+    console.error("Market Analysis Error:", error.message);
+    throw error;
+  }
+};

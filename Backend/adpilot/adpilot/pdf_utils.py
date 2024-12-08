@@ -9,6 +9,8 @@ import re
 from reportlab.platypus.frames import Frame
 from reportlab.platypus.doctemplate import PageTemplate
 from reportlab.pdfgen import canvas
+from reportlab.lib.enums import TA_JUSTIFY, TA_LEFT
+from reportlab.lib.styles import ParagraphStyle as PS
 
 class BorderedDocTemplate(SimpleDocTemplate):
     def __init__(self, *args, **kwargs):
@@ -55,131 +57,198 @@ def add_section_box(content, style, background_color='#f5f5f5', border_color='#1
     ]))
     return table
 
-def create_market_analysis_pdf(analysis_data: dict) -> BytesIO:
+def clean_text(text: str) -> str:
+    """Clean and format the text properly"""
+    # Handle bullet points and double asterisks with line breaks
+    text = re.sub(r'\*\*([^*]+)\*\*', r'\n\1\n', text)  # Handle **text**
+    text = re.sub(r'\*([^*\n]+)', r'\n• \1\n', text)    # Handle *text
+    text = re.sub(r'[\n\s]*\*\s*', '\n• ', text)        # Clean up bullet points
+    
+    # Fix spacing and formatting
+    text = re.sub(r'\s+', ' ', text)                     # Remove multiple spaces
+    text = re.sub(r'\n\s*\n\s*\n+', '\n\n', text)       # Remove excessive line breaks
+    text = re.sub(r'(?<=\.)(?=\w)', ' ', text)          # Add space after periods
+    text = re.sub(r'(?<=\w)(?=[A-Z])', ' ', text)       # Add space between words
+    text = re.sub(r'\n• \s*', '\n• ', text)             # Clean up bullet point spacing
+    
+    # Ensure spacing around bullet points
+    text = re.sub(r'([^\n])(?=\n• )', r'\1\n', text)    # Add space before bullet
+    text = re.sub(r'(• [^\n]+)(?=\n[^• ])', r'\1\n', text)  # Add space after bullet content
+    
+    return text.strip()
+
+def create_market_analysis_pdf(report_data: dict) -> BytesIO:
     buffer = BytesIO()
     doc = BorderedDocTemplate(
         buffer, 
         pagesize=letter,
-        rightMargin=50,
-        leftMargin=50,
-        topMargin=50,
-        bottomMargin=30
+        rightMargin=40,
+        leftMargin=40,
+        topMargin=40,
+        bottomMargin=40
     )
     
     story = []
     styles = getSampleStyleSheet()
     
-    # Modern styling
-    title_style = ParagraphStyle(
+    # Updated styling with professional fonts and spacing
+    title_style = PS(
         'CustomTitle',
         parent=styles['Heading1'],
-        fontSize=28,
-        spaceAfter=30,
-        textColor=HexColor('#1a237e'),
-        fontName='Helvetica-Bold'
-    )
-    
-    section_style = ParagraphStyle(
-        'SectionTitle',
-        parent=styles['Heading2'],
         fontSize=20,
         spaceAfter=15,
-        textColor=HexColor('#303f9f'),
+        textColor=HexColor('#000000'),
         fontName='Helvetica-Bold',
-        spaceBefore=25
+        alignment=TA_LEFT,
+        leading=24
     )
     
-    subsection_style = ParagraphStyle(
+    section_style = PS(
+        'SectionTitle',
+        parent=styles['Heading2'],
+        fontSize=14,
+        spaceAfter=8,
+        spaceBefore=16,
+        textColor=HexColor('#000000'),
+        fontName='Helvetica-Bold',
+        leading=18,
+        borderPadding=(0, 0, 3, 0)
+    )
+    
+    subsection_style = PS(
         'SubSection',
         parent=styles['Heading3'],
-        fontSize=14,
-        spaceAfter=10,
-        textColor=HexColor('#3949ab'),
-        fontName='Helvetica-Bold'
+        fontSize=12,
+        spaceAfter=6,
+        spaceBefore=12,
+        textColor=HexColor('#000000'),
+        fontName='Helvetica-Bold',
+        leading=16,
+        borderPadding=(0, 0, 2, 8)
     )
     
-    body_style = ParagraphStyle(
+    body_style = PS(
         'CustomBody',
         parent=styles['Normal'],
-        fontSize=11,
-        spaceAfter=8,
-        leading=14,
-        textColor=HexColor('#263238')
+        fontSize=9,
+        spaceAfter=6,
+        spaceBefore=4,
+        textColor=HexColor('#000000'),
+        fontName='Helvetica',
+        alignment=TA_JUSTIFY,
+        leading=12
     )
     
-    # Add title and metadata
+    bullet_style = PS(
+        'BulletPoint',
+        parent=body_style,
+        fontSize=9,
+        leftIndent=15,
+        firstLineIndent=0,
+        spaceBefore=3,
+        spaceAfter=3,
+        bulletIndent=8,
+        leading=12,
+        textColor=HexColor('#000000')
+    )
+
+    # Add title
     story.append(Paragraph("Market Analysis Report", title_style))
-    
-    # Enhanced metadata table
-    metadata = analysis_data.get('metadata', {})
+    story.append(Spacer(1, 15))
+
+    # Enhanced metadata table with professional styling
+    metadata = report_data.get('metadata', {})
     meta_data = [
-        ['Product', metadata.get('product', 'N/A')],
-        ['Category', metadata.get('category', 'N/A')],
-        ['Product Type', metadata.get('product_type', 'N/A')]
+        ['Product', metadata.get('product', 'N/A').title()],  # Proper case
+        ['Category', metadata.get('category', 'N/A').title()],
+        ['Product Type', metadata.get('product_type', 'N/A').title()]
     ]
     
-    meta_table = Table(meta_data, colWidths=[1.5*inch, 5*inch])
+    meta_table = Table(meta_data, colWidths=[1.2*inch, 5.3*inch])
     meta_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (0, -1), HexColor('#e3f2fd')),  # Lighter blue background
-        ('TEXTCOLOR', (0, 0), (-1, -1), HexColor('#1a237e')),
+        ('BACKGROUND', (0, 0), (0, -1), HexColor('#f5f5f5')),  # Light gray background
+        ('TEXTCOLOR', (0, 0), (-1, -1), HexColor('#000000')),  # Black text
         ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTNAME', (1, 0), (1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 11),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
-        ('TOPPADDING', (0, 0), (-1, -1), 12),
-        ('GRID', (0, 0), (-1, -1), 1, HexColor('#bbdefb')),  # Lighter grid lines
-        ('BOX', (0, 0), (-1, -1), 2, HexColor('#1976d2')),  # Stronger border
-        ('ROUNDEDCORNERS', [10, 10, 10, 10]),  # Add rounded corners
+        ('FONTSIZE', (0, 0), (-1, -1), 9),  # Smaller font size
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 8),
+        ('LEFTPADDING', (0, 0), (-1, -1), 10),
+        ('RIGHTPADDING', (0, 0), (-1, -1), 10),
+        ('GRID', (0, 0), (-1, -1), 0.5, HexColor('#e0e0e0')),  # Lighter grid
+        ('BOX', (0, 0), (-1, -1), 1, HexColor('#cccccc')),  # Subtle border
     ]))
+    
     story.append(meta_table)
-    story.append(Spacer(1, 30))
+    story.append(Spacer(1, 20))
 
-    # Process content
-    analysis_text = analysis_data.get('analysis_report', '')
-    
-    # Split into sections and format
-    sections = re.split(r'\*\*(.*?)\*\*', analysis_text)
-    
-    for i in range(1, len(sections), 2):
-        section_title = sections[i].strip()
-        section_content = sections[i+1].strip()
+    # Process content with better formatting
+    analysis_content = report_data.get('analysis_report', '')
+    if analysis_content:
+        # Clean and format the content
+        analysis_content = clean_text(analysis_content)
         
-        story.append(Paragraph(section_title, section_style))
-        story.append(Spacer(1, 10))
-        
-        # Process subsections with enhanced boxing
-        subsections = section_content.split('\n\n')
-        for subsection in subsections:
-            if subsection.strip():
-                if subsection.startswith('*') or subsection.startswith('+'):
-                    bullet_points = re.split(r'\n[*+]', subsection)
-                    bullet_content = []
-                    for point in bullet_points:
-                        if point.strip():
-                            bullet_content.append(Paragraph(
-                                f"• {point.strip()}", 
-                                body_style
-                            ))
-                    # Add bullets in a colored box
-                    for bullet in bullet_content:
-                        story.append(add_section_box(
-                            bullet, 
-                            body_style,
-                            background_color='#f3e5f5',
-                            border_color='#7b1fa2'
-                        ))
-                else:
-                    # Add regular content in a colored box
-                    story.append(add_section_box(
-                        Paragraph(subsection.strip(), body_style),
-                        body_style,
-                        background_color='#e8f5e9',
-                        border_color='#2e7d32'
-                    ))
+        sections = analysis_content.split('#')
+        for section in sections:
+            if not section.strip():
+                continue
+                
+            lines = section.strip().split('\n')
+            if lines:
+                # Process section title
+                section_title = lines[0].strip()
+                if section_title:
+                    story.append(Paragraph(section_title, section_style))
+                    story.append(Spacer(1, 6))
+                
+                content = '\n'.join(lines[1:])
+                subsections = content.split('##')
+                
+                for subsection in subsections:
+                    if not subsection.strip():
+                        continue
+                        
+                    sub_lines = [line for line in subsection.strip().split('\n') if line.strip()]
+                    if sub_lines:
+                        # Process subsection title
+                        if sub_lines[0].strip():
+                            story.append(Paragraph(sub_lines[0].strip(), subsection_style))
+                            story.append(Spacer(1, 4))
+                        
+                        # Group and process content with better spacing
+                        current_bullets = []
+                        current_paragraph = []
+                        
+                        for line in sub_lines[1:]:
+                            line = line.strip()
+                            if line.startswith('*'):
+                                if current_paragraph:
+                                    story.append(Paragraph(' '.join(current_paragraph), body_style))
+                                    story.append(Spacer(1, 3))  # Add small space after paragraph
+                                    current_paragraph = []
+                                current_bullets.append(line[1:].strip())
+                            elif line:
+                                if current_bullets:
+                                    bullet_text = '<br/><br/>'.join([f'• {b}' for b in current_bullets])
+                                    story.append(Paragraph(bullet_text, bullet_style))
+                                    story.append(Spacer(1, 4))  # Add space after bullet points
+                                    current_bullets = []
+                                current_paragraph.append(line)
+                        
+                        # Add remaining content
+                        if current_bullets:
+                            bullet_text = '<br/><br/>'.join([f'• {b}' for b in current_bullets])
+                            story.append(Paragraph(bullet_text, bullet_style))
+                            story.append(Spacer(1, 4))
+                        
+                        if current_paragraph:
+                            story.append(Paragraph(' '.join(current_paragraph), body_style))
+                            story.append(Spacer(1, 3))
+                        
+                        story.append(Spacer(1, 6))
+                
                 story.append(Spacer(1, 8))
-        
-        story.append(Spacer(1, 15))
 
     # Build PDF
     doc.build(story)

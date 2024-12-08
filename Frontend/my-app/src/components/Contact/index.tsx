@@ -129,9 +129,9 @@ const Contact = () => {
                     Create Campaign
                   </Link>
                   <Link
-                    href="/contact"
+                    href="/createad"
                     className={`rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit duration-300 ${
-                      pathname === "/contact"
+                      pathname === "/createad"
                         ? "bg-gray-500"
                         : "bg-gray-500 hover:bg-gray-600"
                     }`}

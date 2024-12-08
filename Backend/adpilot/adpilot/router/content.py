@@ -21,6 +21,13 @@ class AdGenerationRequest(BaseModel):
     description: str = Field(..., description="Detailed product description")
     category: str = Field(..., description="Product category")
 
+class ContentCacheRequest(BaseModel):
+    content: str
+
+class ContentDownloadRequest(BaseModel):
+    content: str
+    metadata: dict
+
 content_router = APIRouter(
     prefix="/content",
     tags=["content"],
@@ -30,7 +37,7 @@ content_router = APIRouter(
 @content_router.post("/analyze-market")
 async def analyze_market_comprehensive(
     request: MarketAnalysisDetailRequest,
-    current_user: Annotated[User, Depends(current_user)]  # Add this line
+    current_user: Annotated[User, Depends(current_user)]
 ):
     """Generate comprehensive market analysis using both Serper and LLaMA"""
     try:
@@ -73,32 +80,83 @@ async def analyze_market_comprehensive(
             f"- Competitive risks\n"
             f"- Operational risks\n"
             f"- Mitigation strategies\n\n"
-            f"Provide specific, actionable insights for each section. Include data points and examples where relevant."
+            f"Format your response using simple markdown with the following structure:\n\n"
+            f"# Market Overview\n\n"
+            f"## Market Size & Growth\n"
+            f"* Current Size: [specific market size]\n"
+            f"* Growth Rate: [CAGR and projections]\n"
+            f"* Market Value: [current and projected values]\n\n"
+            f"## Market Segments\n"
+            f"* Primary Segment: [details with percentage share]\n"
+            f"* Secondary Segment: [details with percentage share]\n"
+            f"* Emerging Segment: [growth potential]\n\n"
+            f"# Key Market Trends\n\n"
+            f"## Technology Trends\n"
+            f"* Leading Tech: [specific details]\n"
+            f"* Innovation: [new developments]\n"
+            f"* Future Tech: [emerging technologies]\n\n"
+            f"## Consumer Behavior\n"
+            f"* Preferences: [key consumer preferences]\n"
+            f"* Buying Patterns: [purchase behavior]\n"
+            f"* Demographics: [target market details]\n\n"
+            f"# Competitive Landscape\n\n"
+            f"## Major Players\n"
+            f"* Market Leader: [name and market share]\n"
+            f"* Key Competitor: [strengths and position]\n"
+            f"* Emerging Player: [unique advantages]\n\n"
+            f"# Strategic Recommendations\n\n"
+            f"## Market Entry\n"
+            f"* Positioning: [specific strategy]\n"
+            f"* Target Market: [primary focus]\n"
+            f"* USP: [unique selling points]\n\n"
+            f"# Risk Analysis\n\n"
+            f"## Key Risks\n"
+            f"* Market Risks: [specific challenges]\n"
+            f"* Competition: [competitive threats]\n"
+            f"* Mitigation: [strategic solutions]"
         )
 
-        llama_response = await llama_api.generate_content(
-            prompt=analysis_prompt,
-            model="llama3.2"
+        return StreamingResponse(
+            llama_api.generate_content_stream(
+                prompt=analysis_prompt,
+                model="llama3.2"
+            ),
+            media_type="text/event-stream"
         )
-
-        response_data = {
-            "status": "success",
-            "analysis_report": llama_response,
-            "metadata": {
-                "product": request.product,
-                "category": request.category,
-                "product_type": request.product_type
-            }
-        }
-
-        # Cache only the latest report
-        cache_report(response_data)
-
-        return response_data
+        
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Analysis generation failed: {str(e)}"
+        )
+
+@content_router.post("/download-report")
+async def download_report(
+    request: ContentDownloadRequest,
+    current_user: Annotated[User, Depends(current_user)]
+):
+    """Generate and download PDF report from provided content"""
+    try:
+        report_data = {
+            'metadata': request.metadata,
+            'analysis_report': request.content
+        }
+        
+        # Generate PDF directly from provided content
+        pdf_buffer = create_market_analysis_pdf(report_data)
+        
+        product_name = request.metadata.get("product", "report")
+        return StreamingResponse(
+            pdf_buffer,
+            media_type="application/pdf",
+            headers={
+                'Content-Disposition': f'attachment; filename="market_analysis_{product_name}.pdf"'
+            }
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"PDF generation failed: {str(e)}"
         )
 
 @content_router.get("/download-latest-report")
@@ -161,6 +219,29 @@ async def generate_advertisement(
         raise HTTPException(
             status_code=500,
             detail=f"Advertisement generation failed: {str(e)}"
+        )
+
+@content_router.post("/cache-content")
+async def cache_content(
+    request: ContentCacheRequest,
+    current_user: Annotated[User, Depends(current_user)]
+):
+    """Cache the content received from frontend"""
+    try:
+        report_data = {
+            'metadata': {
+                'product': 'Latest Report',
+                'category': 'Market Analysis',
+                'product_type': 'Analysis Report'
+            },
+            'analysis_report': request.content
+        }
+        cache_report(report_data)
+        return {"status": "success", "message": "Content cached successfully"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to cache content: {str(e)}"
         )
 
 

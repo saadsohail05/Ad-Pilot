@@ -1,14 +1,70 @@
 "use client"; // Marks this file as a client component
 
-import { useState } from "react";
+import { useState, useEffect } from "react"; // Add useEffect
 import NewsLatterBox from "./NewsLatterBox";
+import { analyzeMarket } from "@/actions/actions";
+import { useAuth } from "@/context/AuthContext"; // Updated import path
+import { Tooltip } from "@/components/ui/tooltip"; // Corrected import path
 
 const Contact = () => {
-  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [generatedContent, setGeneratedContent] = useState<string>("");
+  const [token, setToken] = useState<string | null>(null); // Add token state
+  const { user } = useAuth(); // Get user from AuthContext
+  const [isStarted, setIsStarted] = useState(false); // Add this state
+  const [formData, setFormData] = useState<{
+    product: string;
+    product_type: string;
+    category: string;
+  } | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Move localStorage access to useEffect
+  useEffect(() => {
+    const storedToken = localStorage.getItem('access_token');
+    setToken(storedToken);
+  }, []);
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setSubmitted(true);
+    setLoading(true);
+    setIsStarted(false); // Reset isStarted
+    setError(null);
+    setGeneratedContent(""); // Clear previous content
+
+    const formDataObj = new FormData(e.currentTarget);
+    const data = {
+      product: formDataObj.get('productName') as string,
+      product_type: formDataObj.get('productType') as string,
+      category: formDataObj.get('productCategory') as string,
+      description: formDataObj.get('productDescription') as string,
+    };
+
+    // Save form data for metadata
+    setFormData({
+      product: data.product,
+      product_type: data.product_type,
+      category: data.category
+    });
+
+    try {
+      if (!token) {
+        throw new Error('Not authenticated');
+      }
+
+      await analyzeMarket(
+        data,
+        token,
+        (chunk: string) => {
+          setIsStarted(true);
+          setGeneratedContent(prev => prev + chunk);
+        }
+      );
+    } catch (err: any) {
+      setError(err.message || 'Failed to analyze market');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -23,9 +79,12 @@ const Contact = () => {
               <h2 className="mb-3 text-2xl font-bold text-black dark:text-white sm:text-3xl lg:text-2xl xl:text-3xl">
                 Market Insights
               </h2>
-              <p className="mb-6 text-base font-medium text-body-color">
-                Enter product details below and submit.
-              </p>
+              
+              {error && (
+                <div className="mb-4 text-red-500 text-sm">
+                  {error}
+                </div>
+              )}
 
               {/* Form Input Fields */}
               <form onSubmit={handleSubmit}>
@@ -107,13 +166,16 @@ const Contact = () => {
                     </div>
                   </div>
 
-                  {/* Submit Button */}
+                  {/* Updated Submit Button with Loading State */}
                   <div className="w-full px-4 mb-6">
                     <button
                       type="submit"
-                      className="rounded-sm bg-blue-500 px-6 py-3 text-base font-medium text-white shadow-submit duration-300 hover:bg-blue-600 dark:shadow-submit-dark"
+                      disabled={loading}
+                      className={`rounded-sm ${
+                        loading ? 'bg-blue-400' : 'bg-blue-500 hover:bg-blue-600'
+                      } px-6 py-3 text-base font-medium text-white shadow-submit duration-300 dark:shadow-submit-dark`}
                     >
-                      Submit
+                      {loading ? 'Analyzing...' : 'Submit'}
                     </button>
                   </div>
                 </div>
@@ -122,7 +184,25 @@ const Contact = () => {
           </div>
 
           <div className="w-full px-4 lg:w-5/12 xl:w-4/12">
-            {submitted && <NewsLatterBox content="Generated insights will be displayed here" />}
+            {loading && !isStarted && (
+              <div className="relative z-10 rounded-xl bg-white p-8 shadow-lg dark:bg-gray-dark sm:p-11 lg:p-8 xl:p-11">
+                <div className="flex flex-col items-center justify-center space-y-4">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+                  <p className="text-center text-gray-600 dark:text-gray-400">
+                    Fetching market insights...
+                    <br />
+                    <span className="text-sm">This may take a few moments</span>
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {isStarted && generatedContent && (
+              <NewsLatterBox 
+                content={generatedContent} 
+                metadata={formData || undefined}
+              />
+            )}
           </div>
         </div>
       </div>

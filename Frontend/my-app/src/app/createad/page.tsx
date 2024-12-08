@@ -16,7 +16,7 @@ const ContactPage = () => {
     { label: "View Analytics", href: "/viewanalytics" },
     { label: "Market Insights", href: "/marketinsights" },
     { label: "Chatbot for Queries", href: "/chatbotforqueries" },
-    { label: "Manage Campaign", href: "/contact" },
+    { label: "Manage Campaign", href: "/createcampaign" },
     // Add more links as needed
   ];
 

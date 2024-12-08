@@ -6,8 +6,8 @@ import LeftSidebar from "@/components/leftsidebar/leftsidebar"; // Import the Le
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Get Started | Ad Pilot",
-  // other metadata
+  title: "Market Insights | Ad Pilot",
+  description: "Comprehensive market analysis and competitor insights"
 };
 
 const ContactPage = () => {
@@ -16,7 +16,7 @@ const ContactPage = () => {
     { label: "View Analytics", href: "/viewanalytics" },
     { label: "Market Insights", href: "/marketinsights" },
     { label: "Chatbot for Queries", href: "/chatbotforqueries" },
-    { label: "Manage Campaign", href: "/contact" },
+    { label: "Manage Campaign", href: "/createcampaign" },
     // Add more links as needed
   ];
 
@@ -25,8 +25,8 @@ const ContactPage = () => {
       <LeftSidebar username="User" links={sidebarLinks} /> {/* Add the LeftSidebar */}
       <div className="flex-1">
         <Breadcrumb
-          pageName="Get Started"
-          description="Will use this as main features page"
+          pageName="Market Insights"
+          description="Comprehensive market analysis and competitor insights"
         />
         <Contact />
       </div>

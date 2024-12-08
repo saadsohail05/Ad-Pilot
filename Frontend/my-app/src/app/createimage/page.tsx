@@ -13,13 +13,12 @@ export const metadata: Metadata = {
 const ContactPage = () => {
   // Define the links for the sidebar
   const sidebarLinks = [
-    { label: "Home", href: "/" },
-    { label: "About", href: "/about" },
-    { label: "Services", href: "/services" },
-    { label: "Contact", href: "/contact" },
+    { label: "View Analytics", href: "/viewanalytics" },
+    { label: "Market Insights", href: "/marketinsights" },
+    { label: "Chatbot for Queries", href: "/chatbotforqueries" },
+    { label: "Manage Campaign", href: "/createcampaign" },
     // Add more links as needed
   ];
-
   return (
     <div className="flex">
       <LeftSidebar username="User" links={sidebarLinks} /> {/* Add the LeftSidebar */}

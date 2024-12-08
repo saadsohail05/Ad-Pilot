@@ -157,7 +157,7 @@ const Contact = () => {
               <div className="w-full px-4">
                 <div className="flex justify-between space-x-4">
                   <Link
-                    href="/contact"
+                    href="/createad"
                     className={`rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit duration-300 ${
                       pathname === "/create-campaign"
                         ? "bg-blue-500"
@@ -167,7 +167,7 @@ const Contact = () => {
                     Create Campaign
                   </Link>
                   <Link
-                    href="/contact"
+                    href="/createad"
                     className={`rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit duration-300 ${
                       pathname === "/contact"
                         ? "bg-gray-500"
