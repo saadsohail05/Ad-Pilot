@@ -22,7 +22,7 @@ const menuData: Menu[] = [
   {
     id: 3,
     title: "Get Started",
-    path: "/contact",
+    path: "/createcampaign",
     newTab: false,
   },
   {
@@ -60,7 +60,14 @@ const menuData: Menu[] = [
         path: "/forgotpassword",
         newTab: false,
       },
+      {
+        id: 50,
+        title: "Checkout",
+        path: "/checkout",
+        newTab: false,
+      },
     ],
   },
+  
 ];
 export default menuData;
