@@ -1,37 +1,48 @@
-import React from "react";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
 import Breadcrumb from "@/components/Common/Breadcrumb";
-import Contact from "@/components/schedule-publish/schedule-publish";
-import LeftSidebar from "@/components/leftsidebar/leftsidebar"; // Import the LeftSidebar component
+import SchedulePublish from "@/components/schedule-publish/schedule-publish";
+import LeftSidebar from "@/components/leftsidebar/leftsidebar";
+import LoadingSpinner from "@/components/Common/LoadingSpinner";
 
-import { Metadata } from "next";
+const SchedulePublishPage = () => {
+  const router = useRouter();
+  const { user, isLoading } = useAuth();
 
-export const metadata: Metadata = {
-  title: "Schedule/Publish Ad | Ad Pilot",
-  // other metadata
-};
+  useEffect(() => {
+    // Check authentication
+    if (!isLoading && !user) {
+      router.push('/signin');
+    }
+  }, [user, isLoading, router]);
 
-const ContactPage = () => {
   // Define the links for the sidebar
   const sidebarLinks = [
     { label: "View Analytics", href: "/viewanalytics" },
     { label: "Market Insights", href: "/marketinsights" },
     { label: "Chatbot for Queries", href: "/chatbotforqueries" },
     { label: "Manage Campaign", href: "/createcampaign" },
-    // Add more links as needed
   ];
+
+  if (isLoading || !user) {
+    return <LoadingSpinner />;
+  }
 
   return (
     <div className="flex">
-      <LeftSidebar username="User" links={sidebarLinks} /> {/* Add the LeftSidebar */}
+      <LeftSidebar username={user.username} links={sidebarLinks} />
       <div className="flex-1">
         <Breadcrumb
-          pageName="Schedule / Publish "
-          description=""
+          pageName="Schedule / Publish"
+          description="Schedule or immediately publish your ad campaign"
         />
-        <Contact />
+        <SchedulePublish />
       </div>
     </div>
   );
 };
 
-export default ContactPage;
+export default SchedulePublishPage;
