@@ -1,15 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Form
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, Form, UploadFile, File
 from typing import Annotated, Optional
 from pydantic import BaseModel
-from adpilot.models import Register_User, User, Ads  # Add Ads to imports
+from adpilot.models import Register_User, User, Ads  
 from adpilot.db import get_session
 from adpilot.auth import hash_password, get_user_from_db, oauth_scheme, current_user
 from sqlmodel import Session, select
 from adpilot.email import send_verification_email, verify_token
 import requests
-from adpilot.utils import verify_email_exists  # Add this import at the top
+from adpilot.utils import verify_email_exists
+from adpilot.image_utils import upload_image
 
-# Add this class near the top with other models
 class EmailRequest(BaseModel):
     email: str
 
@@ -18,10 +18,8 @@ class ResetPasswordRequest(BaseModel):
     verification_code: str
     new_password: str
 
-# Add this class with other models
 class CreateAd(BaseModel):
     adcopy: str
-    imglink: str
     productname: str
     product_category: str
 
@@ -199,32 +197,41 @@ async def reset_password(
     
     return {"message": "Password reset successful"}
 
-@user_router.post("/create-ad", response_model=dict)
+@user_router.post("/ads", response_model=dict)
 async def create_ad(
-    ad_data: CreateAd,
+    session: Annotated[Session, Depends(get_session)],
     current_user: Annotated[User, Depends(current_user)],
-    session: Annotated[Session, Depends(get_session)]
+    adcopy: str = Form(...),
+    imglink: str = Form(...),
+    cover_imglink: str = Form(None),
+    productname: str = Form(...),
+    product_category: str = Form(...)
 ):
     try:
-        new_ad = Ads(
-            adcopy=ad_data.adcopy,
-            imglink=ad_data.imglink,
-            username=current_user.username,  # Get username from logged in user
-            productname=ad_data.productname,
-            product_category=ad_data.product_category
+        ad = Ads(
+            adcopy=adcopy,
+            imglink=imglink,
+            cover_imglink=cover_imglink,
+            username=current_user.username,
+            productname=productname,
+            product_category=product_category
         )
-        session.add(new_ad)
+        session.add(ad)
         session.commit()
-        session.refresh(new_ad)
-        
+        session.refresh(ad)
+
         return {
             "message": "Ad created successfully",
             "status": "success",
             "status_code": 201,
             "ad": {
-                "id": new_ad.id,
-                "productname": new_ad.productname,
-                "product_category": new_ad.product_category
+                "id": ad.id,
+                "adcopy": ad.adcopy,
+                "imglink": ad.imglink,
+                "cover_imglink": ad.cover_imglink,
+                "username": ad.username,
+                "productname": ad.productname,
+                "product_category": ad.product_category
             }
         }
     except Exception as e:
@@ -245,10 +252,7 @@ async def get_all_ads(
     limit: int = 6
 ):
     try:
-        # Get total count
         total = session.exec(select(Ads)).all().__len__()
-        
-        # Get paginated ads
         statement = select(Ads).offset(skip).limit(limit)
         ads = session.exec(statement).all()
         
@@ -264,6 +268,7 @@ async def get_all_ads(
                     "id": ad.id,
                     "adcopy": ad.adcopy,
                     "imglink": ad.imglink,
+                    "cover_imglink": ad.cover_imglink,
                     "username": ad.username,
                     "productname": ad.productname,
                     "product_category": ad.product_category
@@ -280,3 +285,134 @@ async def get_all_ads(
                 "status_code": 500
             }
         )
+
+# Add ad_id parameter to upload-image endpoint
+@user_router.post("/upload-image/{ad_id}")
+async def upload_product_image(
+    ad_id: int,
+    current_user: Annotated[User, Depends(current_user)],
+    file: UploadFile = File(...)
+):
+    """
+    Upload a product image and update the corresponding ad with the image URL
+    """
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    try:
+        # Get session
+        session = next(get_session())
+        
+        # Get the ad
+        ad = session.get(Ads, ad_id)
+        if not ad:
+            raise HTTPException(status_code=404, detail="Ad not found")
+            
+        # Check if user owns the ad
+        if ad.username != current_user.username:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this ad")
+        
+        # Upload the image
+        result = await upload_image(file)
+        if result["status"] == "error":
+            raise HTTPException(status_code=500, detail=result["message"])
+        
+        # Update the ad with the image URL
+        ad.imglink = result["url"]
+        session.add(ad)
+        session.commit()
+        session.refresh(ad)
+            
+        return {
+            "message": "Image uploaded and ad updated successfully",
+            "status": "success", 
+            "status_code": 201,
+            "data": {
+                "url": result["url"],
+                "public_id": result["public_id"],
+                "ad_id": ad.id
+            }
+        }
+    except Exception as e:
+        if 'session' in locals():
+            session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": f"Error uploading image: {str(e)}",
+                "status": "error",
+                "status_code": 500
+            }
+        )
+
+@user_router.post("/upload-cover-image/{ad_id}")
+async def upload_cover_image(
+    ad_id: int,
+    current_user: Annotated[User, Depends(current_user)],
+    file: UploadFile = File(...)
+):
+    """
+    Upload a cover image and update the corresponding ad with the cover image URL
+    """
+    if not file.content_type.startswith('image/'):
+        raise HTTPException(status_code=400, detail="File must be an image")
+    
+    try:
+        # Get session
+        session = next(get_session())
+        
+        # Get the ad
+        ad = session.get(Ads, ad_id)
+        if not ad:
+            raise HTTPException(status_code=404, detail="Ad not found")
+            
+        # Check if user owns the ad
+        if ad.username != current_user.username:
+            raise HTTPException(status_code=403, detail="Not authorized to modify this ad")
+        
+        # Upload the image
+        result = await upload_image(file)
+        if result["status"] == "error":
+            raise HTTPException(status_code=500, detail=result["message"])
+        
+        # Update the ad with the cover image URL
+        ad.cover_imglink = result["url"]
+        session.add(ad)
+        session.commit()
+        session.refresh(ad)
+            
+        return {
+            "message": "Cover image uploaded and ad updated successfully",
+            "status": "success", 
+            "status_code": 201,
+            "data": {
+                "url": result["url"],
+                "public_id": result["public_id"],
+                "ad_id": ad.id
+            }
+        }
+    except Exception as e:
+        if 'session' in locals():
+            session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "message": f"Error uploading cover image: {str(e)}",
+                "status": "error",
+                "status_code": 500
+            }
+        )
+
+@user_router.get("/me", response_model=dict)
+async def get_current_user(
+    current_user: Annotated[User, Depends(current_user)]
+):
+    """Get information about the currently authenticated user"""
+    return {
+        "id": current_user.id,
+        "username": current_user.username,
+        "email": current_user.email,
+        "first_name": current_user.first_name,
+        "last_name": current_user.last_name,
+        "is_verified": current_user.is_verified
+    }
