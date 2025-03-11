@@ -1,37 +1,40 @@
-import React from "react";
+"use client";
+
+import AnalyticsComponent from "@/components/viewanalytics/viewanalytics";
 import Breadcrumb from "@/components/Common/Breadcrumb";
-import Contact from "@/components/viewanalytics/viewanalytics";
-import LeftSidebar from "@/components/leftsidebar/leftsidebar"; // Import the LeftSidebar component
+import { useAuth } from "@/context/AuthContext";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-import { Metadata } from "next";
+const ViewAnalyticsPage = () => {
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
 
-export const metadata: Metadata = {
-  title: "View Analytics | Ad Pilot",
-  // other metadata
-};
+  // Redirect if not authenticated
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.push("/signin");
+    }
+  }, [user, isLoading, router]);
 
-const ContactPage = () => {
-  // Define the links for the sidebar
-  const sidebarLinks = [
-    { label: "View Analytics", href: "/viewanalytics" },
-    { label: "Market Insights", href: "/marketinsights" },
-    { label: "Chatbot for Queries", href: "/chatbotforqueries" },
-    { label: "Manage Campaign", href: "/createcampaign" },
-    // Add more links as needed
-  ];
+  // Show loading state while checking authentication
+  if (isLoading || !user) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="flex">
-      <LeftSidebar username="User" links={sidebarLinks} /> {/* Add the LeftSidebar */}
-      <div className="flex-1">
-        <Breadcrumb
-          pageName="Campaign Analysis"
-          description=""
-        />
-        <Contact />
-      </div>
-    </div>
+    <>
+      <Breadcrumb
+        pageName="Analytics Dashboard"
+        description="View your campaign performance analytics"
+      />
+      <AnalyticsComponent />
+    </>
   );
 };
 
-export default ContactPage;
+export default ViewAnalyticsPage;
