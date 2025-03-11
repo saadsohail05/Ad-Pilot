@@ -4,7 +4,7 @@ export const registerUser = async (userData: {
   username: string;
   email: string;
   password: string;
-}): Promise<any> => {  // Changed return type to any to match backend response
+}): Promise<any> => {  
   try {
     const requestData = {
       first_name: userData.first_name,
@@ -33,7 +33,11 @@ export const registerUser = async (userData: {
       throw new Error("No response data received");
     }
 
-    return result; // This will now return the complete response from backend
+    // The server response (result) will contain:
+    // - user details
+    // - registration status
+    // - any other relevant information from the server
+    return result; 
   } catch (error: any) {
     console.error("Registration Error:", error.message);
     throw error;
@@ -65,6 +69,11 @@ export const signInUser = async (credentials: {
       throw new Error(result.detail || "Something went wrong.");
     }
 
+    // The response from the server is returned directly as an object containing:
+    // - access_token
+    // - refresh_token
+    // - is_verified
+    // - email
     return result;
   } catch (error: any) {
     console.error("Sign In Error:", error.message);
@@ -166,6 +175,72 @@ export const analyzeMarket = async (
     }
   } catch (error: any) {
     console.error("Market Analysis Error:", error.message);
+    throw error;
+  }
+};
+
+export const uploadImage = async (
+  file: File,
+  adId: number, 
+  token: string
+): Promise<{ url: string; public_id: string }> => {
+  try {
+    console.log('Creating form data with:', { file, adId });
+    const formData = new FormData();
+    formData.append('file', file);
+
+    console.log('Making API request to upload image...');
+    const response = await fetch(`http://localhost:8000/user/upload-image/${adId}`, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      },
+      body: formData,
+    });
+
+    console.log('Response status:', response.status);
+    const result = await response.json();
+    console.log('Response data:', result);
+
+    if (!response.ok) {
+      throw new Error(result.detail?.message || result.detail || "Image upload failed");
+    }
+
+    if (!result.data?.url || !result.data?.public_id) {
+      throw new Error("Invalid response format from server");
+    }
+
+    return {
+      url: result.data.url,
+      public_id: result.data.public_id
+    };
+  } catch (error: any) {
+    console.error("Image Upload Error:", error.message);
+    throw error;
+  }
+};
+
+export const fetchAnalytics = async (
+  userId: number, 
+  token: string
+): Promise<any> => {
+  try {
+    const response = await fetch(`/api/analytics/${userId}`, {
+      method: "GET",
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(errorData.error || "Failed to fetch analytics data");
+    }
+
+    const data = await response.json();
+    return data;
+  } catch (error: any) {
+    console.error("Analytics Fetch Error:", error.message);
     throw error;
   }
 };
