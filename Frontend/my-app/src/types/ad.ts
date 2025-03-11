@@ -1,4 +1,3 @@
-
 type Author = {
   name: string;
   image: string;
@@ -10,6 +9,7 @@ export type Ad = {
   title: string;
   paragraph: string;
   image: string;
+  cover_imglink?: string;
   author: Author;
   tags: string[];
   publishDate: string;
