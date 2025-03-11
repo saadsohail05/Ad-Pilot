@@ -2,85 +2,50 @@
 
 import { useTheme } from "next-themes";
 
-interface ContentGenerationBoxProps {
+interface NewsLatterBoxProps {
   content: string;
-  onRetry: () => Promise<void>;
-  onApprove: (content: string) => Promise<void>;  // Modified this line
-  productData?: {
-    productname: string;
-    product_category: string;
-  };
+  onRetry: () => void;
+  onApprove: (content: string) => void;
+  productData: any;
 }
 
-const ContentGenerationBox = ({
-  content,
-  onRetry,
-  onApprove,
-  productData
-}: ContentGenerationBoxProps) => {
+const NewsLatterBox = ({ content, onRetry, onApprove, productData }: NewsLatterBoxProps) => {
   const { theme } = useTheme();
-
-  const handleApprove = async () => {
-    if (onApprove) {
-      await onApprove(content);
+  
+  const handleApproveClick = (content: string) => {
+    console.log('Approve button clicked');
+    try {
+      onApprove(content);
+    } catch (error) {
+      console.error('Error in handleApproveClick:', error);
     }
   };
 
   return (
     <div className="relative z-10 rounded-xl bg-white p-8 shadow-lg dark:bg-gray-dark sm:p-11 lg:p-8 xl:p-11">
-      <h3 className="mb-4 text-2xl font-semibold text-black dark:text-white">
-        Generated Content
+      <h3 className="mb-4 text-2xl font-bold text-black dark:text-white">
+        Generated Advertisement
       </h3>
-
-      <div className="mb-6 border-b border-body-color border-opacity-25 pb-6 text-base leading-relaxed text-body-color dark:border-white dark:border-opacity-25">
-        {content}
+      <p className="mb-6 text-base font-medium text-body-color">
+        Review the generated advertisement for {productData?.product}
+      </p>
+      <div className="border rounded-lg p-4 mb-6 bg-gray-50 dark:bg-gray-800">
+        <p className="text-body-color whitespace-pre-wrap">{content}</p>
       </div>
-
-      <div className="flex justify-end gap-3">
+      <div className="flex space-x-4">
         <button
-          onClick={handleApprove}  // Modified this line
-          className="flex items-center gap-2 px-5 py-2 mr-10 rounded-md bg-green-500 hover:bg-green-600 text-white"
+          onClick={() => handleApproveClick(content)}
+          className="flex items-center justify-center rounded-md bg-green-500 px-9 py-4 text-base font-medium text-white shadow-submit duration-300 hover:bg-green-600 dark:shadow-submit-dark"
         >
-          {/* Modern Approve Icon */}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
-          Approve
+          Approve & Continue
         </button>
         <button
-          onClick={() => onRetry()}
-          className="flex items-center gap-2 px-6 py-2 rounded-md bg-gray-600 hover:bg-gray-700 text-white"
+          onClick={onRetry}
+          className="flex items-center justify-center rounded-md bg-gray-500 px-9 py-4 text-base font-medium text-white shadow-submit duration-300 hover:bg-gray-600 dark:shadow-submit-dark"
         >
-          {/* Modern Retry Icon */}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-5 w-5"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth="2"
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          Retry
+          Generate Another
         </button>
       </div>
-
       <div>
         <span className="absolute left-2 top-7">
           <svg
@@ -158,4 +123,4 @@ const ContentGenerationBox = ({
   );
 };
 
-export default ContentGenerationBox;
+export default NewsLatterBox;

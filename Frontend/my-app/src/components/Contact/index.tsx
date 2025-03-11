@@ -1,24 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import NewsLatterBox from "./NewsLatterBox";
 import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 
 const Contact = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const [generatedContent, setGeneratedContent] = useState<string>("");
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState<any>(null);
-  const [token, setToken] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useAuth();
+  const { user, accessToken } = useAuth(); // Change token to accessToken
+  const [campaignData, setCampaignData] = useState(null);
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('access_token');
-    setToken(storedToken);
-  }, []);
+    // Get the stored campaign data
+    const storedCampaignData = localStorage.getItem('campaignData');
+    if (!storedCampaignData) {
+      router.push('/createcampaign');
+    } else {
+      setCampaignData(JSON.parse(storedCampaignData));
+    }
+  }, [router]);
 
   const generateContent = async (data: any) => {
     setIsLoading(true);
@@ -26,7 +32,7 @@ const Contact = () => {
     setError(null);
     
     try {
-      if (!token) {
+      if (!accessToken) {
         throw new Error('Not authenticated');
       }
 
@@ -34,7 +40,7 @@ const Contact = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          'Authorization': `Bearer ${accessToken}`,
         },
         body: JSON.stringify(data),
       });
@@ -55,10 +61,20 @@ const Contact = () => {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+    const product = e.currentTarget.productName.value.trim();
+    const description = e.currentTarget.productDescription.value.trim();
+    const category = e.currentTarget.productCategory.value.trim();
+
+    // Validate empty fields
+    if (!product || !description || !category) {
+      setError('All fields are required. Please fill in all the information.');
+      return;
+    }
+
     const formData = {
-      product: e.currentTarget.productName.value,
-      description: e.currentTarget.productDescription.value,
-      category: e.currentTarget.productCategory.value,
+      product,
+      description,
+      category,
     };
     setFormData(formData);
     await generateContent(formData);
@@ -72,39 +88,75 @@ const Contact = () => {
 
   const handleApprove = async (content: string) => {
     try {
-      if (!token) {
+      if (!accessToken) {
         throw new Error('Not authenticated');
       }
 
-      const adData = {
-        adcopy: content,
-        imglink: "",  // Empty as requested
-        productname: formData.product,
-        product_category: formData.category
-      };
-
-      const response = await fetch('http://localhost:8000/user/create-ad', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
-        },
-        body: JSON.stringify(adData),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to save ad');
+      if (!formData) {
+        throw new Error('No form data available');
       }
 
-      // Just clear the form and generated content after successful save
-      setGeneratedContent("");
-      setFormData(null);
+      // Append website URL to adcopy
+      const websiteUrl = campaignData?.websiteUrl;
+      const enhancedContent = `${content}\nClick here for more information: ${websiteUrl}`;
+
+      const formDataToSend = new FormData();
+      formDataToSend.append('adcopy', enhancedContent);
+      formDataToSend.append('imglink', '');
+      formDataToSend.append('productname', formData.product);
+      formDataToSend.append('product_category', formData.category);
+      formDataToSend.append('username', user?.username || '');
+
+      console.log('Making API call to create ad...');
+      const response = await fetch('http://localhost:8000/user/ads', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        },
+        body: formDataToSend,
+      });
+
+      console.log('Response status:', response.status);
+      const result = await response.json();
+      console.log('Response data:', result);
+
+      if (!response.ok) {
+        throw new Error(result.message || result.detail?.message || 'Failed to save ad');
+      }
+
+      if (!result.ad?.id) {
+        console.error('Response data structure:', result);
+        throw new Error('No ad ID received from server');
+      }
+
+      // Store ad data including the ID in localStorage
+      const dataToStore = {
+        adcopy: enhancedContent,
+        imglink: '',
+        productname: formData.product,
+        product_category: formData.category,
+        generatedContent: enhancedContent,
+        id: result.ad.id 
+      };
+
+      console.log('Storing ad data:', dataToStore);
+      localStorage.setItem('adData', JSON.stringify(dataToStore));
+
+      // Wait a moment before navigation
+      await new Promise(resolve => setTimeout(resolve, 100));
       
+      // Navigate to next step
+      await router.push('/createimage');
+
     } catch (error) {
-      console.error('Error saving ad:', error);
-      setError((error as Error).message || 'Failed to save ad');
+      console.error('Error in handleApprove:', error);
+      setError(error instanceof Error ? error.message : 'Failed to save ad');
     }
   };
+
+  if (!campaignData) {
+    return null; // or a loading spinner
+  }
 
   return (
     <section id="contact" className="overflow-hidden py-16 md:py-20 lg:py-28">
@@ -126,7 +178,7 @@ const Contact = () => {
               )}
 
               <p className="mb-6 text-base font-medium text-body-color">
-                Enter product details below and submit.
+                Create your ad for campaign: {campaignData?.campaignName}
               </p>
 
               {/* Form Input Fields */}
@@ -204,49 +256,39 @@ const Contact = () => {
                 </div>
               </form>
 
-              {/* Page Navigation Buttons */}
+              {/* Progress Navigation */}
               <div className="w-full px-4">
                 <div className="flex justify-between space-x-4">
-                  <Link
-                    href="/createcampaign"
-                    className={`rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit duration-300 ${
-                      pathname === "/createcampaign"
+                  <div className="rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit bg-green-500">
+                    1. Campaign ✓
+                  </div>
+                  <div
+                    className={`rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit ${
+                      pathname === "/contact"
                         ? "bg-blue-500"
-                        : "bg-gray-500 hover:bg-gray-600"
+                        : "bg-gray-500"
                     }`}
                   >
-                    Create Campaign
-                  </Link>
-                  <Link
-                    href="/createad"
-                    className={`rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit duration-300 ${
-                      pathname === "/createad"
-                        ? "bg-gray-500"
-                        : "bg-gray-500 hover:bg-gray-600"
+                    2. Create Ad
+                  </div>
+                  <div
+                    className={`rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit ${
+                      pathname === "/createimage"
+                        ? "bg-blue-500"
+                        : "bg-gray-500"
                     }`}
                   >
-                    Create Ad
-                  </Link>
-                  <Link
-                    href="/createimage"
-                    className={`rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit duration-300 ${
-                      pathname === "/create-image"
-                        ? "bg-gray-500"
-                        : "bg-gray-500 hover:bg-gray-600"
-                    }`}
-                  >
-                    Create Image
-                  </Link>
-                  <Link
-                    href="/schedule-publish"
-                    className={`rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit duration-300 ${
+                    3. Create Image
+                  </div>
+                  <div
+                    className={`rounded-sm px-6 py-3 text-base font-medium text-white shadow-submit ${
                       pathname === "/schedule-publish"
-                        ? "bg-gray-500"
-                        : "bg-gray-500 hover:bg-gray-600"
+                        ? "bg-blue-500"
+                        : "bg-gray-500"
                     }`}
                   >
-                    Schedule / Publish
-                  </Link>
+                    4. Schedule/Publish
+                  </div>
                 </div>
               </div>
             </div>
