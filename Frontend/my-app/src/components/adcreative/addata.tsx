@@ -11,7 +11,16 @@ interface AdsResponse {
 
 export async function fetchAds(skip: number = 0, limit: number = 6): Promise<AdsResponse> {
   try {
-    const response = await fetch(`http://localhost:8000/user/ads?skip=${skip}&limit=${limit}`);
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const response = await fetch(`http://localhost:8000/user/ads?skip=${skip}&limit=${limit}`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
 
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
@@ -29,10 +38,11 @@ export async function fetchAds(skip: number = 0, limit: number = 6): Promise<Ads
       id: ad.id,
       title: ad.productname || 'Untitled',
       paragraph: ad.adcopy || '',
-      image: "/images/blog/blog-01.jpg",
+      image: ad.imglink || "/images/blog/blog-01.jpg",
+      cover_imglink: ad.cover_imglink || null,
       author: {
         name: ad.username || 'Anonymous',
-        image: "/images/blog/author-01.png",
+        image: "/images/blog/author-03.png",
         designation: ad.product_category || 'Uncategorized'
       },
       tags: [ad.product_category || 'Uncategorized'],
