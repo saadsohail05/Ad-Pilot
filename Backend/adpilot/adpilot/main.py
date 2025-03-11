@@ -6,13 +6,14 @@ from adpilot import setting
 from typing import Annotated
 from contextlib import asynccontextmanager
 from adpilot.db import get_session, create_tables
-from adpilot.router import user
+from adpilot.router import user, content
 from adpilot.auth import authenticate_user, create_access_token, EXPIRY_TIME, create_refresh_token, validate_refresh_token, get_user_from_db
 from adpilot.models import User, Token, RefreshTokenData, TokenData, Register_User
 from fastapi.middleware.cors import CORSMiddleware
 from adpilot.email import send_verification_email
 import subprocess
-from adpilot.router import content  # Add this import
+from fastapi.staticfiles import StaticFiles
+import os
 
 
 @asynccontextmanager
@@ -27,29 +28,39 @@ async def lifespan(app: FastAPI):
     redis_process.terminate()
 
 app: FastAPI = FastAPI(
-    lifespan=lifespan, title="Adpilot", version='1.0.0')
+    lifespan=lifespan, 
+    title="Adpilot", 
+    version='1.0.0'
+)
+
+# Ensure the generated_images directory exists
+os.makedirs("./generated_images", exist_ok=True)
+
+# Mount the generated_images directory as a static files location
+app.mount("/generated_images", StaticFiles(directory="generated_images"), name="generated_images")
 
 # Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Adjust this to the specific origins you want to allow
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Specify allowed methods
-    allow_headers=["Content-Type", "Authorization"],  # Specify allowed headers
+    allow_methods=["*"],
+    allow_headers=["*"]
 )
 
+# Include routers
 app.include_router(user.user_router)
-app.include_router(content.content_router)  # Add this line
+app.include_router(content.content_router)
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to Adpilot!"}
 
-        
-# login . username, password
 @app.post('/token', response_model=Token)
-async def login(form_data:Annotated[OAuth2PasswordRequestForm, Depends()],
-                session:Annotated[Session, Depends(get_session)]):
+async def login(
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    session: Annotated[Session, Depends(get_session)]
+):
     try:
         user = authenticate_user(form_data.username, form_data.password, session)
         
@@ -81,26 +92,26 @@ async def login(form_data:Annotated[OAuth2PasswordRequestForm, Depends()],
             )
         raise e  # Re-raise other exceptions
 
-
 @app.post("/token/refresh")
-def refresh_token(old_refresh_token:str,
-                  session:Annotated[Session, Depends(get_session)]):
+def refresh_token(
+    old_refresh_token: str,
+    session: Annotated[Session, Depends(get_session)]
+):
+    refresh_claims = validate_refresh_token(old_refresh_token)
+    user = get_user_from_db(session, email=refresh_claims["sub"])
     
-    credential_exception = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid token, Please login again",
-        headers={"www-Authenticate":"Bearer"}
-    )
-    
-    user = validate_refresh_token(old_refresh_token,
-                                  session)
     if not user:
-        raise credential_exception
+        raise HTTPException(
+            status_code=404,
+            detail="User not found"
+        )
     
     expire_time = timedelta(minutes=EXPIRY_TIME)
-    access_token = create_access_token({"sub":user.username}, expire_time)
-
+    access_token = create_access_token({"sub": user.username}, expire_time)
     refresh_expire_time = timedelta(days=7)
-    refresh_token = create_refresh_token({"sub":user.email}, refresh_expire_time)
+    refresh_token = create_refresh_token({"sub": user.email}, refresh_expire_time)
 
-    return Token(access_token=access_token, token_type= "bearer", refresh_token=refresh_token)
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token
+    }

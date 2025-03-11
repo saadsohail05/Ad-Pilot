@@ -16,8 +16,8 @@ class AdLlamaAPI:
             "prompt": prompt,
             "stream": False,
             "options": {
-                "min_p": 0.1,        # Restored original option
-                "temperature": 1.5,   # Restored original option
+                "min_p": 0.1,       
+                "temperature": 1.5,  
             }
         }
         
