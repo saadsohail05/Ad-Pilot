@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, Depends
 from pydantic import BaseModel, Field
-from typing import Optional, Annotated
+from typing import Optional, Annotated, Dict, List
 from adpilot.llama_utils import llama_api
 from adpilot.marketinsights import analyze_data
 from fastapi.responses import StreamingResponse
@@ -9,6 +9,18 @@ from adpilot.cache_utils import cache_report, get_latest_report
 from adpilot.adllama_utils import adllama_api  
 from adpilot.auth import current_user
 from adpilot.models import User
+from adpilot.imaggen import generate_image
+import base64
+import time
+import os
+from ..analytics import get_analytics_data
+from sqlmodel import Session
+from ..db import get_session
+from ..chatbot import chatbot
+from ..FBpostschedule import create_facebook_ad
+from datetime import datetime
+from ..models import User, Campaign, Metrics, Ads  # Added Ads import
+from ..instgram_schedule_post import create_page_post as create_instagram_post
 
 class MarketAnalysisDetailRequest(BaseModel):
     product: str = Field(..., min_length=1, description="Name of the product")
@@ -27,6 +39,61 @@ class ContentCacheRequest(BaseModel):
 class ContentDownloadRequest(BaseModel):
     content: str
     metadata: dict
+
+class ImagePromptRequest(BaseModel):
+    ad_content: str = Field(..., description="Advertisement content to base the image prompt on")
+    style: Optional[str] = Field(default="digital art", description="Desired style of the image")
+    mood: Optional[str] = Field(default="professional", description="Desired mood of the image")
+
+class GenerateImageResponse(BaseModel):
+    prompt: str
+    image_url: str
+
+class ChatbotRequest(BaseModel):
+    text: str
+    is_initial: bool = False
+
+class FacebookAdBaseRequest(BaseModel):
+    """Base request model for Facebook ads"""
+    message: str = Field(..., description="The ad copy/message to post")
+    image_urls: List[str] = Field(..., min_items=1, max_items=2, description="List of image URLs to post (1-2 images)")
+    ad_id: int = Field(..., description="ID of the existing ad to use")
+
+class FacebookScheduledAdRequest(FacebookAdBaseRequest):
+    """Request model for scheduling Facebook ads"""
+    scheduled_time: str = Field(..., description="Scheduled time in format YYYY-MM-DDTHH:MM:SS (UTC)")
+
+class FacebookAdResponse(BaseModel):
+    """Response model for Facebook ad creation"""
+    success: bool
+    post_id: str
+    campaign_id: str
+    adset_id: str
+    creative_id: str
+    ad_id: str
+    post_link: str
+    scheduled_time: Optional[str]
+
+class InstagramAdBaseRequest(BaseModel):
+    """Base request model for Instagram ads"""
+    message: str = Field(..., description="The ad copy/message to post")
+    image_urls: List[str] = Field(..., min_items=1, max_items=2, description="List of image URLs to post (1-2 images)")
+    ad_id: int = Field(..., description="ID of the existing ad to use")
+
+class InstagramScheduledAdRequest(InstagramAdBaseRequest):
+    """Request model for scheduling Instagram ads"""
+    scheduled_time: str = Field(..., description="Scheduled time in format YYYY-MM-DDTHH:MM:SS (UTC)")
+
+class InstagramAdResponse(BaseModel):
+    """Response model for Instagram ad creation"""
+    success: bool
+    post_id: str
+    campaign_id: str
+    adset_id: str
+    creative_id: str
+    ad_id: str
+    post_link: str
+    scheduled_time: Optional[str]
 
 content_router = APIRouter(
     prefix="/content",
@@ -235,6 +302,413 @@ async def cache_content(
         raise HTTPException(
             status_code=500,
             detail=f"Failed to cache content: {str(e)}"
+        )
+
+@content_router.post("/generate-combined-image", response_model=GenerateImageResponse)
+async def generate_combined_image(
+    request: ImagePromptRequest,
+    current_user: Annotated[User, Depends(current_user)]
+):
+    """Generate an image prompt and then use it to generate an image"""
+    try:
+        # Generate the prompt
+        prompt = (
+            f"Create a captivating and professional advertisement scene that focuses on: {request.ad_content}\n"
+            f"Style: {request.style}\n"
+            f"Mood: {request.mood}\n"
+            f"Make sure to create a cohesive scene that effectively communicates the product's value proposition."
+        )
+        
+        prompt_response = await llama_api.generate_content(prompt=prompt)
+        
+        # Generate the image using the prompt
+        try:
+            image_data = generate_image(prompt_response)
+            
+            # Save the image
+            filename = f"generated_image_{current_user.id}_{int(time.time())}.png"
+            filepath = f"./generated_images/{filename}"
+            
+            # Ensure directory exists
+            os.makedirs("./generated_images", exist_ok=True)
+            
+            with open(filepath, 'wb') as f:
+                f.write(image_data)
+                
+            # Return both the prompt and image URL
+            return GenerateImageResponse(
+                prompt=prompt_response,
+                image_url=f"/generated_images/{filename}"
+            )
+            
+        except Exception as image_error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"Image generation failed: {str(image_error)}"
+            )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Process failed: {str(e)}"
+        )
+
+@content_router.get("/analytics/{user_id}")
+async def get_user_analytics(user_id: int, current_user: Annotated[User, Depends(current_user)]):
+    """Get analytics data for a user's campaigns"""
+    # Verify user has access to requested data
+    if current_user.id != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        analytics_data = get_analytics_data(user_id)
+        return analytics_data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@content_router.post("/chatbot")
+async def get_chatbot_response(
+    request: ChatbotRequest,
+    current_user: Annotated[User, Depends(current_user)],
+    session: Session = Depends(get_session)
+):
+    """
+    Get a response from the chatbot about campaign metrics.
+    
+    To get initial greeting:
+    ```
+    {
+        "text": "",
+        "is_initial": true
+    }
+    ```
+    
+    To ask questions about metrics:
+    ```
+    {
+        "text": "What are my campaign metrics?",
+        "is_initial": false
+    }
+    ```
+    """
+    if not request.is_initial and not request.text:
+        raise HTTPException(
+            status_code=400,
+            detail="Message text is required for non-initial messages"
+        )
+        
+    response = await chatbot.get_response(
+        user_id=current_user.id,
+        user_message=request.text,
+        session=session,
+        is_initial=request.is_initial
+    )
+    
+    return response
+
+@content_router.post("/facebook-ad/post-now", response_model=FacebookAdResponse)
+async def post_facebook_ad_now(
+    request: FacebookAdBaseRequest,
+    current_user: Annotated[User, Depends(current_user)],
+    session: Session = Depends(get_session)
+):
+    """
+    Create and post a Facebook advertisement immediately.
+    - Accepts 1-2 images
+    - Posts the ad right away
+    """
+    try:
+        # Get existing ad
+        ad = session.query(Ads).filter(Ads.id == request.ad_id).first()
+        if not ad:
+            raise HTTPException(status_code=404, detail="Ad not found")
+            
+        if ad.username != current_user.username:
+            raise HTTPException(status_code=403, detail="Not authorized to use this ad")
+
+        # Create the Facebook ad
+        result = await create_facebook_ad(
+            image_urls=request.image_urls,
+            message=request.message,
+            scheduled_time=None  # Explicitly set to None for immediate posting
+        )
+        
+        # Create Campaign record in database with the existing ad_id
+        campaign = Campaign(
+            user_id=current_user.id,
+            ad_id=ad.id,  # Use existing ad ID
+            fb_id=result["campaign_id"],
+            fb_post_id=result["post_id"],
+            fb_adset_id=result["adset_id"],
+            fb_creative_id=result["creative_id"],
+            fb_ad_id=result["ad_id"],
+            fb_post_link=result["post_link"],
+            name=f"FB Campaign {result['campaign_id']}",
+            platform="facebook",  # Set the platform explicitly
+            status="active",
+            created_at=datetime.utcnow().isoformat()
+        )
+        
+        session.add(campaign)
+        session.flush()
+        
+        # Create initial Metrics record
+        metrics = Metrics(
+            user_id=current_user.id,
+            campaign_id=campaign.id
+        )
+        session.add(metrics)
+        
+        # Update existing ad with any new information
+        ad.imglink = request.image_urls[0]
+        if len(request.image_urls) > 1:
+            ad.cover_imglink = request.image_urls[1]
+        
+        # Commit all changes
+        session.commit()
+        
+        return result
+        
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to create Facebook ad: {str(e)}"
+        )
+
+@content_router.post("/facebook-ad/schedule", response_model=FacebookAdResponse)
+async def schedule_facebook_ad(
+    request: FacebookScheduledAdRequest,
+    current_user: Annotated[User, Depends(current_user)],
+    session: Session = Depends(get_session)
+):
+    """
+    Schedule a Facebook advertisement for future posting.
+    - Uses existing ad record
+    - Accepts 1-2 images
+    - Scheduled time must be at least 20 minutes in the future
+    - Time format: YYYY-MM-DDTHH:MM:SS (UTC)
+    """
+    try:
+        # Get existing ad
+        ad = session.query(Ads).filter(Ads.id == request.ad_id).first()
+        if not ad:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Ad with id {request.ad_id} not found"
+            )
+
+        result = await create_facebook_ad(
+            image_urls=request.image_urls,
+            message=request.message,
+            scheduled_time=request.scheduled_time
+        )
+        
+        # Create Campaign record with existing ad ID
+        campaign = Campaign(
+            user_id=current_user.id,
+            ad_id=ad.id,  # Use existing ad ID
+            fb_id=result["campaign_id"],
+            fb_post_id=result["post_id"],
+            fb_adset_id=result["adset_id"],
+            fb_creative_id=result["creative_id"],
+            fb_ad_id=result["ad_id"],
+            fb_post_link=result["post_link"],
+            name=f"FB Campaign {result['campaign_id']}",
+            platform="facebook",  # Set the platform explicitly
+            status="scheduled",
+            created_at=datetime.utcnow().isoformat(),
+            scheduled_time=request.scheduled_time
+        )
+        
+        session.add(campaign)
+        session.flush()
+        
+        # Create initial Metrics record
+        metrics = Metrics(
+            user_id=current_user.id,
+            campaign_id=campaign.id
+        )
+        session.add(metrics)
+        session.commit()
+        
+        return result
+        
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to schedule Facebook ad: {str(e)}"
+        )
+
+@content_router.post("/instagram-ad/post-now", response_model=InstagramAdResponse)
+async def post_instagram_ad_now(
+    request: InstagramAdBaseRequest,
+    current_user: Annotated[User, Depends(current_user)],
+    session: Session = Depends(get_session)
+):
+    """
+    Create and post an Instagram advertisement immediately.
+    - Accepts 1-2 images
+    - Posts the ad right away
+    """
+    try:
+        # Get existing ad
+        ad = session.query(Ads).filter(Ads.id == request.ad_id).first()
+        if not ad:
+            raise HTTPException(status_code=404, detail="Ad not found")
+            
+        if ad.username != current_user.username:
+            raise HTTPException(status_code=403, detail="Not authorized to use this ad")
+
+        # Create the Instagram post
+        result = await create_instagram_post(
+            image_urls=request.image_urls,
+            message=request.message,
+            scheduled_time=None  # Explicitly set to None for immediate posting
+        )
+        
+        if not result:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to create Instagram post"
+            )
+        
+        # Create Campaign record with Instagram-specific fields
+        campaign = Campaign(
+            user_id=current_user.id,
+            ad_id=ad.id,
+            name=f"IG Campaign {result['post_id']}",
+            platform="instagram",
+            status="active",
+            created_at=datetime.utcnow().isoformat(),
+            # Instagram specific fields
+            ig_post_id=result["post_id"],
+            ig_post_link=result["post_link"]
+        )
+        
+        session.add(campaign)
+        session.flush()
+        
+        # Create initial Metrics record
+        metrics = Metrics(
+            user_id=current_user.id,
+            campaign_id=campaign.id
+        )
+        session.add(metrics)
+        
+        # Update existing ad with any new information
+        ad.imglink = request.image_urls[0]
+        if len(request.image_urls) > 1:
+            ad.cover_imglink = request.image_urls[1]
+        
+        # Commit changes
+        session.commit()
+        
+        return InstagramAdResponse(
+            success=True,
+            post_id=result["post_id"],
+            campaign_id="",  # These fields are empty since we're not creating ads
+            adset_id="",
+            creative_id="",
+            ad_id="",
+            post_link=result["post_link"],
+            scheduled_time=None
+        )
+        
+    except Exception as e:
+        session.rollback()
+        print(f"Error in post_instagram_ad_now: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
+
+@content_router.post("/instagram-ad/schedule", response_model=InstagramAdResponse)
+async def schedule_instagram_ad(
+    request: InstagramScheduledAdRequest,
+    current_user: Annotated[User, Depends(current_user)],
+    session: Session = Depends(get_session)
+):
+    """
+    Schedule an Instagram advertisement for future posting.
+    - Uses existing ad record
+    - Accepts 1-2 images
+    - Scheduled time must be at least 20 minutes in the future
+    - Time format: YYYY-MM-DDTHH:MM:SS (UTC)
+    """
+    try:
+        # Get existing ad
+        ad = session.query(Ads).filter(Ads.id == request.ad_id).first()
+        if not ad:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Ad with id {request.ad_id} not found"
+            )
+            
+        if ad.username != current_user.username:
+            raise HTTPException(status_code=403, detail="Not authorized to use this ad")
+
+        # Create the Instagram post with scheduling
+        result = await create_instagram_post(
+            image_urls=request.image_urls,
+            message=request.message,
+            scheduled_time=request.scheduled_time
+        )
+        
+        if not result:
+            raise HTTPException(
+                status_code=500,
+                detail="Failed to schedule Instagram post"
+            )
+        
+        # Create Campaign record with Instagram-specific fields
+        campaign = Campaign(
+            user_id=current_user.id,
+            ad_id=ad.id,
+            name=f"IG Campaign {result['post_id']}",
+            platform="instagram",
+            status="scheduled",
+            created_at=datetime.utcnow().isoformat(),
+            scheduled_time=request.scheduled_time,
+            # Instagram specific fields
+            ig_post_id=result["post_id"],
+            ig_post_link=result["post_link"]
+        )
+        
+        session.add(campaign)
+        session.flush()
+        
+        # Create initial Metrics record
+        metrics = Metrics(
+            user_id=current_user.id,
+            campaign_id=campaign.id
+        )
+        session.add(metrics)
+        
+        # Update existing ad with any new information
+        ad.imglink = request.image_urls[0]
+        if len(request.image_urls) > 1:
+            ad.cover_imglink = request.image_urls[1]
+        
+        session.commit()
+        
+        return InstagramAdResponse(
+            success=True,
+            post_id=result["post_id"],
+            campaign_id="",
+            adset_id="",
+            creative_id="",
+            ad_id="",
+            post_link=result["post_link"],
+            scheduled_time=request.scheduled_time
+        )
+        
+    except Exception as e:
+        session.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Failed to schedule Instagram post: {str(e)}"
         )
 
 
