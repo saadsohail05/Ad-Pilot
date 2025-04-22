@@ -6,6 +6,7 @@
 </div>
 
 <div align="center">
+  <a href="#demo">Demo</a> •
   <a href="#features">Features</a> •
   <a href="#tech-stack">Tech Stack</a> •
   <a href="#architecture">Architecture</a> •
@@ -15,6 +16,28 @@
   <a href="#api-documentation">API Documentation</a> •
   <a href="#contributing">Contributing</a> •
   <a href="#license">License</a>
+</div>
+
+## Demo
+
+<div align="center">
+  <a href="https://drive.google.com/file/d/13nKJwJKhAQknXQ0rpIj3ceZxzB3JAlDY/view?usp=sharing" target="_blank">
+    <img src="https://img.shields.io/badge/Watch_Demo-Video-red?style=for-the-badge&logo=google-drive" alt="Watch Demo Video" />
+  </a>
+</div>
+
+<p align="center">Click the button above to watch a comprehensive demonstration of AdPilot in action.</p>
+
+<div align="center">
+  <p><strong>Demo Highlights:</strong></p>
+  <ul style="display: inline-block; text-align: left;">
+    <li>User registration and authentication flow</li>
+    <li>Campaign creation and management</li>
+    <li>AI-powered ad copy generation using fine-tuned Llama 3.2</li>
+    <li>Image generation for advertisements</li>
+    <li>Campaign scheduling and publishing</li>
+    <li>Analytics dashboard and performance tracking</li>
+  </ul>
 </div>
 
 ## Overview
@@ -103,7 +126,7 @@ The platform provides tools for market analysis, content generation, image creat
 - **LLM Integration**: Together AI (Llama 3.2)
 - **Custom LLM**: Fine-tuned Llama 3.2 for advertising content generation
 - **Local LLM Deployment**: Ollama for efficient model serving
-- **Image Generation**: FLUX.1-schnell-Free model
+- **Image Generation**: FLUX.1-Schnell Model
 - **Data Analysis**: Pandas, Matplotlib, Seaborn
 - **PDF Generation**: ReportLab
 
