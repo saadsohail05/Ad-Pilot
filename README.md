@@ -38,6 +38,7 @@
     <li>Campaign scheduling and publishing</li>
     <li>Analytics dashboard and performance tracking</li>
   </ul>
+  <p><em>Note: Most AI models in the demo are running on CPU, which have since been upgraded for better performance.</em></p>
 </div>
 
 ## Overview
