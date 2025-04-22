@@ -1,7 +1,7 @@
 # AdPilot
 
 <div align="center">
-  <img src="Frontend/my-app/public/images/logo/banner.png" alt="AdPilot Logo" width="500">
+  <img src="Frontend/my-app/public/images/logo/banner.png" alt="AdPilot Logo" width="100%" style="max-width: 800px; height: auto;">
   <h3>AI-Powered Advertising Platform for Startups and Teams with Low Marketing Budgets</h3>
 </div>
 
