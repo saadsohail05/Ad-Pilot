@@ -26,7 +26,7 @@
   </a>
 </div>
 
-<p align="center">Click the button above to watch a comprehensive demonstration of AdPilot in action.</p>
+<p align="center">Click the button above to watch a comprehensive demonstration of AdPilot in action</p>
 
 <div align="center">
   <p><strong>Demo Highlights:</strong></p>
