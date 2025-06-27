@@ -49,7 +49,7 @@ The platform provides tools for market analysis, content generation, image creat
 
 ## Features
 
-### 🚀 Core Features
+### Core Features
 
 - **User Authentication & Management**
   - Secure registration and login system
